@@ -1,0 +1,193 @@
+---
+title: Deployment Overview
+description: Architecture, prerequisites, and deployment options for self-hosting inspir
+---
+
+## Architecture
+
+inspir is a full-stack application with three main components:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Client Browser                       │
+│                  (React + Vite SPA)                     │
+└────────────────────┬────────────────────────────────────┘
+                     │ HTTPS
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│                   nginx (Reverse Proxy)                 │
+│  - Serves static frontend (/)                           │
+│  - Proxies API requests (/api)                          │
+│  - SSL/TLS termination                                  │
+└────────────────────┬────────────────────────────────────┘
+                     │
+        ┌────────────┴────────────┐
+        ▼                         ▼
+┌──────────────────┐      ┌──────────────────────┐
+│  Static Files    │      │   Backend API        │
+│  /var/www/...    │      │   Express + Node.js  │
+│  (built React)   │      │   Port 3000          │
+└──────────────────┘      └──────┬───────────────┘
+                                 │
+                    ┌────────────┴────────────┐
+                    ▼                         ▼
+            ┌───────────────┐        ┌────────────────┐
+            │   Supabase    │        │   Anthropic    │
+            │  PostgreSQL   │        │  Claude API    │
+            │  + Auth       │        │  (AI Models)   │
+            └───────────────┘        └────────────────┘
+```
+
+## Prerequisites
+
+Before deploying inspir, ensure you have:
+
+### Required
+
+- **Node.js 18+** - Runtime for both frontend and backend
+- **npm** - Package manager (comes with Node.js)
+- **Supabase project** with:
+  - Project URL
+  - Anon (public) key
+  - Service role key (for backend)
+- **Anthropic API key** - For Claude AI models ([Get one here](https://console.anthropic.com))
+
+### For Production Deployment
+
+- **Ubuntu 20.04+ server** (or similar Linux distribution)
+- **Domain name** with DNS configured
+- **nginx** - Web server and reverse proxy
+- **PM2 or systemd** - Process management for Node.js
+- **SSL certificate** - Recommended: Let's Encrypt (free)
+- **Git** - For code deployment
+
+## Deployment Options
+
+### Option 1: Local Development
+
+Run both frontend and backend in development mode on your local machine.
+
+<Note>
+Perfect for development, testing, and trying out inspir before deploying to production.
+</Note>
+
+**Best for:**
+- Development and testing
+- Feature experimentation
+- Learning the codebase
+
+[Local Setup Guide →](/deployment/local-setup)
+
+### Option 2: Production Server
+
+Deploy to a production Ubuntu server with nginx, SSL, and PM2/systemd.
+
+<Warning>
+Production deployment requires server administration knowledge and proper security configuration.
+</Warning>
+
+**Best for:**
+- Production use
+- Public-facing instances
+- Team deployments
+
+[Production Deployment Guide →](/deployment/production)
+
+## Environment Variables Overview
+
+Both frontend and backend require environment variables for configuration.
+
+### Backend Environment Variables
+
+```bash
+# Server Configuration
+PORT=3000
+HOST=0.0.0.0
+FRONTEND_URL=http://localhost:5173  # Update for production
+
+# Anthropic API
+ANTHROPIC_API_KEY=your_key_here
+
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# JWT Secret (generate a strong random string)
+JWT_SECRET=your_secure_jwt_secret
+```
+
+### Frontend Environment Variables
+
+```bash
+# Supabase
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+
+# API URL
+VITE_API_URL=http://localhost:3000/api  # Update for production
+```
+
+<Note>
+All environment variables prefixed with `VITE_` are embedded into the frontend build and are publicly visible.
+</Note>
+
+## Database Setup
+
+The Supabase PostgreSQL database requires schema setup before the application can function.
+
+**Key tables:**
+- `quizzes` - Generated quizzes
+- `quiz_results` - Quiz scores and answers
+- `quiz_attempts` - Shared quiz attempts
+- `flashcard_decks` - Flashcard collections
+- `cornell_notes` - Cornell-style notes
+- `study_activity` - Daily activity tracking
+- `user_streaks` - Streak gamification
+- `doubt_questions` - AI homework help
+- `citations` - Citation generator data
+- `forum_posts` - Student forum
+- And 30+ more feature tables
+
+[Database Setup Guide →](/deployment/database-setup)
+
+## Security Considerations
+
+<Warning>
+Proper security configuration is critical for production deployments.
+</Warning>
+
+### Essential Security Steps
+
+1. **Never commit `.env` files** to version control
+2. **Use strong JWT secrets** (32+ random characters)
+3. **Enable SSL/TLS** for production (HTTPS only)
+4. **Configure CORS properly** in backend
+5. **Enable Supabase RLS policies** (Row Level Security)
+6. **Keep dependencies updated** (`npm audit`)
+7. **Use firewall rules** to restrict access
+8. **Secure API keys** (never expose in frontend)
+
+## Next Steps
+
+Choose your deployment path:
+
+<Steps>
+
+<Step title="Set up database">
+Create your Supabase project and run the SQL schema scripts.
+
+[Database Setup →](/deployment/database-setup)
+</Step>
+
+<Step title="Configure environment">
+Set up environment variables for your deployment type.
+
+[Local Setup →](/deployment/local-setup) or [Production →](/deployment/production)
+</Step>
+
+<Step title="Deploy application">
+Follow the appropriate deployment guide for your chosen environment.
+</Step>
+
+</Steps>

@@ -1,0 +1,594 @@
+---
+title: Flashcards API
+description: Generate AI-powered flashcard decks with spaced repetition, track study progress, and share decks
+---
+
+## Generate Flashcards
+
+Generate a flashcard deck from study content using AI. Supports text input and file uploads.
+
+<Info>
+Authentication is optional. Authenticated users can save decks and track study progress with spaced repetition.
+</Info>
+
+```bash POST /api/flashcards/generate
+curl -X POST https://api.inspir.uk/api/flashcards/generate \
+  -H "Content-Type: multipart/form-data" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "content=Photosynthesis is the process..." \
+  -F "deckName=Biology Chapter 5" \
+  -F "sourceName=Textbook" \
+  -F "cardCount=15"
+```
+
+### Request Parameters
+
+<ParamField body="content" type="string" required>
+  Text content to generate flashcards from. Can be provided directly or via file upload.
+</ParamField>
+
+<ParamField body="file" type="file">
+  Optional file upload (PDF, DOCX, TXT). Maximum 10MB. File content takes precedence over text content.
+</ParamField>
+
+<ParamField body="deckName" type="string">
+  Name for the flashcard deck. If not provided, AI will suggest a name based on content.
+</ParamField>
+
+<ParamField body="sourceName" type="string">
+  Source of the content (e.g., "Chapter 5", "Lecture Notes")
+</ParamField>
+
+<ParamField body="cardCount" type="number">
+  Number of flashcards to generate. Min: 5, Max: 50, Default: 10
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation was successful
+</ResponseField>
+
+<ResponseField name="deck" type="object">
+  The generated flashcard deck
+  
+  <Expandable title="Deck Object">
+    <ResponseField name="id" type="string">
+      Unique deck identifier (null for unauthenticated users)
+    </ResponseField>
+    
+    <ResponseField name="deckName" type="string">
+      Name of the deck
+    </ResponseField>
+    
+    <ResponseField name="sourceName" type="string">
+      Source name
+    </ResponseField>
+    
+    <ResponseField name="cards" type="array">
+      Array of flashcards
+      
+      <Expandable title="Card Object">
+        <ResponseField name="id" type="string">
+          Unique card identifier (UUID)
+        </ResponseField>
+        
+        <ResponseField name="front" type="string">
+          Question or prompt text
+        </ResponseField>
+        
+        <ResponseField name="back" type="string">
+          Answer text (2-4 sentences)
+        </ResponseField>
+        
+        <ResponseField name="explanation" type="string">
+          Optional context, mnemonic, or additional info
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="cardCount" type="number">
+      Total number of cards in the deck
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="400 Bad Request">
+```json
+{
+  "error": "Content is required"
+}
+```
+
+```json
+{
+  "error": "Failed to process file",
+  "details": "File format not supported"
+}
+```
+
+```json
+{
+  "error": "Invalid file type. Only PDF, DOCX, and TXT files are allowed."
+}
+```
+</Expandable>
+
+<Expandable title="500 Internal Server Error">
+```json
+{
+  "error": "Failed to generate flashcards",
+  "details": "The AI returned an invalid format"
+}
+```
+</Expandable>
+
+---
+
+## Get User Decks
+
+Retrieve all flashcard decks for the authenticated user with study progress statistics.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash GET /api/flashcards/decks
+curl -X GET https://api.inspir.uk/api/flashcards/decks \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation was successful
+</ResponseField>
+
+<ResponseField name="decks" type="array">
+  Array of flashcard decks with progress statistics
+  
+  <Expandable title="Deck Object">
+    <ResponseField name="id" type="string">
+      Deck ID
+    </ResponseField>
+    
+    <ResponseField name="deck_name" type="string">
+      Deck name
+    </ResponseField>
+    
+    <ResponseField name="source_name" type="string">
+      Source name
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Deck description
+    </ResponseField>
+    
+    <ResponseField name="card_count" type="number">
+      Total number of cards
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="stats" type="object">
+      Mastery statistics
+      
+      <Expandable title="Stats Object">
+        <ResponseField name="mastered" type="number">
+          Number of mastered cards
+        </ResponseField>
+        
+        <ResponseField name="learning" type="number">
+          Number of cards in learning phase
+        </ResponseField>
+        
+        <ResponseField name="new" type="number">
+          Number of cards not yet studied
+        </ResponseField>
+        
+        <ResponseField name="averageEaseFactor" type="number">
+          Average ease factor across all cards
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="dueCount" type="number">
+      Number of cards due for review
+    </ResponseField>
+    
+    <ResponseField name="newCount" type="number">
+      Number of cards not yet studied
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Get Deck by ID
+
+Retrieve a specific flashcard deck with full card details.
+
+```bash GET /api/flashcards/deck/:id
+curl -X GET https://api.inspir.uk/api/flashcards/deck/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the deck
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation was successful
+</ResponseField>
+
+<ResponseField name="deck" type="object">
+  Complete deck object including all cards
+</ResponseField>
+
+<ResponseField name="progress" type="array">
+  Study progress for each card (only for authenticated users)
+  
+  <Expandable title="Progress Object">
+    <ResponseField name="card_id" type="string">
+      Card ID
+    </ResponseField>
+    
+    <ResponseField name="mastery_level" type="number">
+      Current mastery level (0-5)
+    </ResponseField>
+    
+    <ResponseField name="ease_factor" type="number">
+      Ease factor for spaced repetition algorithm
+    </ResponseField>
+    
+    <ResponseField name="interval_days" type="number">
+      Days until next review
+    </ResponseField>
+    
+    <ResponseField name="review_count" type="number">
+      Total number of reviews
+    </ResponseField>
+    
+    <ResponseField name="correct_count" type="number">
+      Number of correct answers
+    </ResponseField>
+    
+    <ResponseField name="last_reviewed_at" type="string">
+      ISO 8601 timestamp of last review
+    </ResponseField>
+    
+    <ResponseField name="next_review_at" type="string">
+      ISO 8601 timestamp of next scheduled review
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="stats" type="object">
+  Mastery statistics (only for authenticated users)
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="403 Forbidden">
+```json
+{
+  "error": "Access denied"
+}
+```
+Returned when trying to access another user's private deck.
+</Expandable>
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Deck not found"
+}
+```
+</Expandable>
+
+---
+
+## Get Study Session
+
+Get cards to study in a session using spaced repetition algorithm.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash GET /api/flashcards/deck/:id/study
+curl -X GET "https://api.inspir.uk/api/flashcards/deck/123e4567-e89b-12d3-a456-426614174000/study?mode=flip&maxCards=25" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the deck
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="mode" type="string">
+  Study mode. Options: `flip` (default), `quiz`, `match`
+</ParamField>
+
+<ParamField query="maxCards" type="number">
+  Maximum number of cards in the session. Default: 25
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation was successful
+</ResponseField>
+
+<ResponseField name="session" type="object">
+  Study session details
+  
+  <Expandable title="Session Object">
+    <ResponseField name="deckId" type="string">
+      Deck ID
+    </ResponseField>
+    
+    <ResponseField name="deckName" type="string">
+      Deck name
+    </ResponseField>
+    
+    <ResponseField name="mode" type="string">
+      Study mode
+    </ResponseField>
+    
+    <ResponseField name="cards" type="array">
+      Cards to study (shuffled), each with progress info and `isNew` flag
+    </ResponseField>
+    
+    <ResponseField name="totalCards" type="number">
+      Total cards in this session
+    </ResponseField>
+    
+    <ResponseField name="dueCards" type="number">
+      Number of due cards in session
+    </ResponseField>
+    
+    <ResponseField name="newCards" type="number">
+      Number of new cards in session
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="stats" type="object">
+  Current mastery statistics
+</ResponseField>
+
+<ResponseField name="recommendation" type="object">
+  Study session recommendations based on progress
+</ResponseField>
+
+---
+
+## Record Study Progress
+
+Record the results of a study session using the SM-2 spaced repetition algorithm.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash POST /api/flashcards/deck/:id/progress
+curl -X POST https://api.inspir.uk/api/flashcards/deck/123e4567-e89b-12d3-a456-426614174000/progress \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "results": [
+      {
+        "cardId": "card-uuid-1",
+        "quality": 4,
+        "correct": true
+      },
+      {
+        "cardId": "card-uuid-2",
+        "quality": 2,
+        "correct": false
+      }
+    ],
+    "mode": "flip",
+    "durationSeconds": 300
+  }'
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the deck
+</ParamField>
+
+### Request Parameters
+
+<ParamField body="results" type="array" required>
+  Array of card results from the study session
+  
+  <Expandable title="Result Object">
+    <ParamField body="cardId" type="string" required>
+      Card ID
+    </ParamField>
+    
+    <ParamField body="quality" type="number" required>
+      Quality of recall (0-5):
+      - 0: Complete blackout
+      - 1: Incorrect, but familiar
+      - 2: Incorrect, but close
+      - 3: Correct with difficulty
+      - 4: Correct with hesitation
+      - 5: Perfect recall
+    </ParamField>
+    
+    <ParamField body="correct" type="boolean" required>
+      Whether the answer was correct
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="mode" type="string">
+  Study mode used
+</ParamField>
+
+<ParamField body="durationSeconds" type="number">
+  Duration of the study session in seconds
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation was successful
+</ResponseField>
+
+<ResponseField name="updates" type="array">
+  Array of updated progress for each card with new review intervals
+</ResponseField>
+
+<ResponseField name="stats" type="object">
+  Updated mastery statistics
+</ResponseField>
+
+<ResponseField name="summary" type="object">
+  Session summary
+  
+  <Expandable title="Summary Object">
+    <ResponseField name="cardsStudied" type="number">
+      Total cards studied
+    </ResponseField>
+    
+    <ResponseField name="cardsCorrect" type="number">
+      Number of correct answers
+    </ResponseField>
+    
+    <ResponseField name="accuracy" type="number">
+      Accuracy percentage (0-100)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Share Deck
+
+Generate a shareable link for a flashcard deck.
+
+<Warning>
+This endpoint requires authentication. You can only share your own decks.
+</Warning>
+
+```bash POST /api/flashcards/deck/:id/share
+curl -X POST https://api.inspir.uk/api/flashcards/deck/123e4567-e89b-12d3-a456-426614174000/share \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the deck to share
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation was successful
+</ResponseField>
+
+<ResponseField name="shareUrl" type="string">
+  Complete shareable URL
+</ResponseField>
+
+<ResponseField name="shareToken" type="string">
+  Unique share token
+</ResponseField>
+
+---
+
+## Get Shared Deck
+
+Retrieve a publicly shared flashcard deck using its share token.
+
+```bash GET /api/flashcards/shared/:token
+curl -X GET https://api.inspir.uk/api/flashcards/shared/abc123def456
+```
+
+### Path Parameters
+
+<ParamField path="token" type="string" required>
+  The share token for the deck
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation was successful
+</ResponseField>
+
+<ResponseField name="deck" type="object">
+  Complete deck object with all cards
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Deck not found or not shared"
+}
+```
+</Expandable>
+
+---
+
+## Delete Deck
+
+Delete a flashcard deck and all associated progress.
+
+<Warning>
+This endpoint requires authentication. You can only delete your own decks. This action cannot be undone.
+</Warning>
+
+```bash DELETE /api/flashcards/deck/:id
+curl -X DELETE https://api.inspir.uk/api/flashcards/deck/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the deck
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Deck deleted successfully"
+}
+```
+
+---
+
+## Spaced Repetition Algorithm
+
+<Info>
+The flashcards feature uses the SM-2 (SuperMemo 2) spaced repetition algorithm to optimize learning:
+
+- **Quality Ratings (0-5)**: After each review, rate how well you recalled the answer
+- **Ease Factor**: Adjusts based on performance (easier cards have longer intervals)
+- **Intervals**: Time between reviews increases exponentially for well-known cards
+- **Mastery Levels**: Cards progress through learning stages as you review them correctly
+
+This ensures you review cards at optimal intervals for long-term retention.
+</Info>

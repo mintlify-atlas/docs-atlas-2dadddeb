@@ -1,0 +1,466 @@
+---
+title: Citation Generator API
+description: Generate properly formatted citations in MLA, APA, Chicago, and Harvard styles, and manage bibliography projects
+---
+
+## Generate Citation
+
+Generate a properly formatted citation from source data.
+
+<Info>
+Authentication is optional. Authenticated users can save citations to their history.
+</Info>
+
+```bash POST /api/citations/generate
+curl -X POST https://api.inspir.uk/api/citations/generate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "citationType": "book",
+    "citationStyle": "MLA",
+    "sourceData": {
+      "author": "Smith, John",
+      "title": "The Great Example",
+      "publisher": "Academic Press",
+      "year": "2023",
+      "location": "New York"
+    }
+  }'
+```
+
+### Request Parameters
+
+<ParamField body="citationType" type="string" required>
+  Type of source to cite. Options:
+  - `book`
+  - `article`
+  - `website`
+  - `journal`
+  - `newspaper`
+  - `video`
+  - `podcast`
+</ParamField>
+
+<ParamField body="citationStyle" type="string" required>
+  Citation format style. Options:
+  - `MLA` - Modern Language Association
+  - `APA` - American Psychological Association
+  - `Chicago` - Chicago Manual of Style
+  - `Harvard` - Harvard referencing system
+</ParamField>
+
+<ParamField body="sourceData" type="object" required>
+  Source information fields. Required fields vary by citation type.
+  
+  <Expandable title="Common Fields">
+    - `author` (string): Author name(s)
+    - `title` (string): Title of work
+    - `year` (string): Publication year
+    - `publisher` (string): Publisher name
+    - `location` (string): Publication location
+    - `url` (string): URL for online sources
+    - `accessDate` (string): Date accessed (for online sources)
+    - `volume` (string): Volume number (for journals)
+    - `issue` (string): Issue number (for journals)
+    - `pages` (string): Page numbers
+  </Expandable>
+</ParamField>
+
+### Response
+
+<ResponseField name="citation" type="string">
+  The formatted citation string
+</ResponseField>
+
+<ResponseField name="saved" type="boolean">
+  Whether the citation was saved to user's history
+</ResponseField>
+
+<ResponseField name="citationId" type="string">
+  Unique identifier for the saved citation (only if saved is true)
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Complete database record (only if saved is true)
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="400 Bad Request">
+```json
+{
+  "error": "Missing required fields: citationType, citationStyle, and sourceData are required"
+}
+```
+
+```json
+{
+  "error": "Invalid citation type. Supported types: book, article, website, journal, newspaper, video, podcast"
+}
+```
+
+```json
+{
+  "error": "Invalid citation style. Supported styles: MLA, APA, Chicago, Harvard"
+}
+```
+</Expandable>
+
+---
+
+## Get Citation History
+
+Retrieve all saved citations for the authenticated user.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash GET /api/citations/history
+curl -X GET "https://api.inspir.uk/api/citations/history?style=MLA&type=book&limit=50&offset=0" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="style" type="string">
+  Filter by citation style (MLA, APA, Chicago, Harvard)
+</ParamField>
+
+<ParamField query="type" type="string">
+  Filter by citation type (book, article, website, etc.)
+</ParamField>
+
+<ParamField query="limit" type="number">
+  Number of results to return. Default: 50
+</ParamField>
+
+<ParamField query="offset" type="number">
+  Number of results to skip (for pagination). Default: 0
+</ParamField>
+
+### Response
+
+<ResponseField name="citations" type="array">
+  Array of saved citations
+  
+  <Expandable title="Citation Object">
+    <ResponseField name="id" type="string">
+      Unique identifier
+    </ResponseField>
+    
+    <ResponseField name="citation_type" type="string">
+      Type of source
+    </ResponseField>
+    
+    <ResponseField name="citation_style" type="string">
+      Format style
+    </ResponseField>
+    
+    <ResponseField name="source_data" type="object">
+      Original source information
+    </ResponseField>
+    
+    <ResponseField name="formatted_citation" type="string">
+      The formatted citation string
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total count of citations
+</ResponseField>
+
+<ResponseField name="limit" type="number">
+  Limit applied
+</ResponseField>
+
+<ResponseField name="offset" type="number">
+  Offset applied
+</ResponseField>
+
+---
+
+## Get Citation by ID
+
+Retrieve a specific citation.
+
+<Warning>
+This endpoint requires authentication. You can only access your own citations.
+</Warning>
+
+```bash GET /api/citations/:id
+curl -X GET https://api.inspir.uk/api/citations/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the citation
+</ParamField>
+
+### Response
+
+Returns a single citation object with the same structure as the history endpoint.
+
+### Error Responses
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Citation not found"
+}
+```
+</Expandable>
+
+---
+
+## Update Citation
+
+Update a saved citation. Automatically regenerates the formatted citation if source data changes.
+
+<Warning>
+This endpoint requires authentication. You can only update your own citations.
+</Warning>
+
+```bash PUT /api/citations/:id
+curl -X PUT https://api.inspir.uk/api/citations/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "citationStyle": "APA",
+    "sourceData": {
+      "author": "Smith, John",
+      "title": "The Great Example (2nd ed.)",
+      "publisher": "Academic Press",
+      "year": "2024"
+    }
+  }'
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the citation
+</ParamField>
+
+### Request Parameters
+
+<ParamField body="citationType" type="string">
+  Updated citation type
+</ParamField>
+
+<ParamField body="citationStyle" type="string">
+  Updated citation style
+</ParamField>
+
+<ParamField body="sourceData" type="object">
+  Updated source data
+</ParamField>
+
+### Response
+
+Returns the updated citation object.
+
+---
+
+## Delete Citation
+
+Delete a saved citation.
+
+<Warning>
+This endpoint requires authentication. You can only delete your own citations.
+</Warning>
+
+```bash DELETE /api/citations/:id
+curl -X DELETE https://api.inspir.uk/api/citations/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the citation
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "Citation deleted successfully"
+}
+```
+
+---
+
+## Create Bibliography Project
+
+Create a new bibliography project to organize multiple citations.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash POST /api/citations/projects
+curl -X POST https://api.inspir.uk/api/citations/projects \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "projectName": "Research Paper 2024",
+    "description": "Citations for my thesis on climate change",
+    "defaultStyle": "APA"
+  }'
+```
+
+### Request Parameters
+
+<ParamField body="projectName" type="string" required>
+  Name of the bibliography project
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional description of the project
+</ParamField>
+
+<ParamField body="defaultStyle" type="string">
+  Default citation style for the project. Default: `"MLA"`
+</ParamField>
+
+### Response
+
+Returns the created project object:
+
+<ResponseField name="id" type="string">
+  Project ID
+</ResponseField>
+
+<ResponseField name="user_id" type="string">
+  Owner's user ID
+</ResponseField>
+
+<ResponseField name="project_name" type="string">
+  Project name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Project description
+</ResponseField>
+
+<ResponseField name="default_style" type="string">
+  Default citation style
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="400 Bad Request">
+```json
+{
+  "error": "Project name is required"
+}
+```
+</Expandable>
+
+---
+
+## Get Projects
+
+Retrieve all bibliography projects for the authenticated user.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash GET /api/citations/projects/list
+curl -X GET https://api.inspir.uk/api/citations/projects/list \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Response
+
+Returns an array of project objects, sorted by creation date (newest first).
+
+---
+
+## Export Bibliography
+
+Export all citations in a project as a formatted bibliography.
+
+<Warning>
+This endpoint requires authentication. You can only export your own projects.
+</Warning>
+
+```bash GET /api/citations/projects/:projectId/export
+curl -X GET "https://api.inspir.uk/api/citations/projects/123e4567-e89b-12d3-a456-426614174000/export?format=text" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="projectId" type="string" required>
+  The unique identifier of the project
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="format" type="string">
+  Export format. Options:
+  - `text` (default): Plain text bibliography with one citation per line
+  - `json`: JSON array of citation objects
+  - `bibtex`: BibTeX format for LaTeX documents
+</ParamField>
+
+### Response
+
+Returns the formatted bibliography as plain text, JSON, or BibTeX depending on the format parameter.
+
+<Expandable title="Text Format Example">
+```
+Smith, John. The Great Example. New York: Academic Press, 2023.
+
+Doe, Jane. "Climate Change Effects." Nature Journal, vol. 45, no. 2, 2022, pp. 123-145.
+```
+</Expandable>
+
+<Expandable title="JSON Format Example">
+```json
+[
+  {
+    "id": "...",
+    "citation_type": "book",
+    "citation_style": "MLA",
+    "source_data": { ... },
+    "formatted_citation": "Smith, John. The Great Example..."
+  }
+]
+```
+</Expandable>
+
+<Expandable title="BibTeX Format Example">
+```bibtex
+@book{citation1,
+  author={Smith, John},
+  title={The Great Example},
+  publisher={Academic Press},
+  year={2023}
+}
+```
+</Expandable>
+
+### Error Responses
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Project not found"
+}
+```
+</Expandable>

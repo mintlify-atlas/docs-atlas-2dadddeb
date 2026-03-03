@@ -1,0 +1,453 @@
+---
+title: Progress Analytics
+description: Track your study performance with comprehensive analytics and progress dashboards
+---
+
+inspir provides powerful analytics to help you understand your study patterns, track improvement, and identify areas that need attention.
+
+## Progress Dashboard
+
+Your central hub for viewing all study metrics and performance data.
+
+<CardGroup cols={2}>
+  <Card title="Quiz Performance" icon="chart-line">
+    Track scores, completion rates, and improvement trends
+  </Card>
+  <Card title="Study Time" icon="clock">
+    Monitor daily, weekly, and monthly study hours
+  </Card>
+  <Card title="Activity Breakdown" icon="chart-pie">
+    See which study tools you use most frequently
+  </Card>
+  <Card title="Streak Analysis" icon="fire">
+    Visualize consistency with streak calendars
+  </Card>
+</CardGroup>
+
+## Quiz History & Statistics
+
+Track your quiz performance over time and identify improvement patterns.
+
+### Quiz Results Tracking
+
+Every quiz you complete is automatically saved with detailed statistics:
+
+```sql
+CREATE TABLE quiz_results (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  quiz_id UUID REFERENCES quizzes(id),
+  score INTEGER NOT NULL,
+  total_questions INTEGER NOT NULL,
+  percentage INTEGER NOT NULL,
+  answers JSONB NOT NULL,
+  submitted_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Viewing Quiz History
+
+```javascript
+// Get your quiz history
+GET /api/quiz/history
+
+// Response includes:
+{
+  quizzes: [
+    {
+      id: "quiz-uuid",
+      source_name: "Chapter 5: Calculus",
+      created_at: "2026-03-01T10:00:00Z",
+      results: [
+        {
+          score: 8,
+          total_questions: 10,
+          percentage: 80,
+          submitted_at: "2026-03-01T10:15:00Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+<Tip>
+You can retake quizzes multiple times. The system tracks all attempts, allowing you to measure improvement!
+</Tip>
+
+### Performance Metrics
+
+**Key Statistics Tracked:**
+- **Average Score**: Mean percentage across all quizzes
+- **Total Quizzes**: Number of quizzes completed
+- **Total Questions**: Sum of all questions answered
+- **Improvement Rate**: Trend analysis of scores over time
+- **Subject Breakdown**: Performance by topic/subject
+- **Time Analysis**: How long you take per quiz
+
+## Shared Quiz Analytics
+
+When you share quizzes, you can view detailed attempt statistics.
+
+### Quiz Attempts Tracking
+
+For shared quizzes, the system tracks all attempts:
+
+```sql
+CREATE TABLE quiz_attempts (
+  id UUID PRIMARY KEY,
+  quiz_id UUID REFERENCES quizzes(id),
+  user_id UUID REFERENCES auth.users(id),
+  attempt_name TEXT NOT NULL,  -- Display name for guest users
+  is_guest BOOLEAN DEFAULT false,
+  score INTEGER NOT NULL,
+  total_questions INTEGER NOT NULL,
+  percentage INTEGER NOT NULL,
+  answers JSONB NOT NULL,
+  completed_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Viewing Attempt Statistics
+
+```javascript
+// Get all attempts for your shared quiz
+GET /api/quiz/:quizId/attempts
+
+// Response includes:
+{
+  quiz: { /* quiz details */ },
+  stats: {
+    total_attempts: 45,
+    average_score: 7.2,
+    highest_score: 10,
+    lowest_score: 3,
+    average_percentage: 72.5
+  },
+  attempts: [
+    {
+      attempt_name: "John D.",
+      score: 8,
+      percentage: 80,
+      completed_at: "2026-03-03T14:30:00Z",
+      is_guest: false
+    },
+    // ...
+  ]
+}
+```
+
+<Note>
+Only the quiz creator can view attempt statistics. Individual users can only see their own results.
+</Note>
+
+## Study Activity Tracking
+
+All your study activities are logged for comprehensive analytics.
+
+### Activity Types Tracked
+
+```sql
+CREATE TABLE study_activity (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  activity_date DATE NOT NULL,
+  activity_type VARCHAR(50) NOT NULL,
+  activity_count INTEGER DEFAULT 1,
+  total_time_minutes INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, activity_date, activity_type)
+);
+```
+
+**Tracked Activities:**
+- `quiz` - Quiz completions
+- `timer` - Pomodoro/study timer sessions
+- `notes` - Note-taking sessions
+- `citation` - Citation generation
+- `doubt` - Doubt solver usage
+- `flashcard` - Flashcard study sessions
+- `mindmap` - Mind map creation
+- `study_guide` - Study guide generation
+
+### Activity Statistics
+
+```javascript
+GET /api/streaks/stats
+
+// Returns comprehensive activity breakdown:
+{
+  total_activities: 150,
+  total_study_time: 3420,  // minutes
+  breakdown: {
+    quiz: 45,
+    timer: 30,
+    flashcard: 25,
+    doubt: 20,
+    notes: 15,
+    // ...
+  },
+  daily_average: 8.5,
+  weekly_trend: [12, 15, 9, 14, 11, 13, 16]
+}
+```
+
+## Flashcard Analytics
+
+Detailed spaced repetition statistics for flashcard study.
+
+### Progress Tracking
+
+```sql
+CREATE TABLE flashcard_progress (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  deck_id UUID NOT NULL,
+  card_id TEXT NOT NULL,
+  mastery_level INTEGER DEFAULT 0,  -- 0-5
+  ease_factor DECIMAL(4,2) DEFAULT 2.50,
+  interval_days INTEGER DEFAULT 0,
+  last_reviewed_at TIMESTAMPTZ,
+  next_review_at TIMESTAMPTZ DEFAULT NOW(),
+  review_count INTEGER DEFAULT 0,
+  correct_count INTEGER DEFAULT 0,
+  UNIQUE(user_id, deck_id, card_id)
+);
+```
+
+**Metrics Tracked:**
+- **Mastery Level**: 0 (new) to 5 (mastered)
+- **Review Count**: Total times reviewed
+- **Accuracy**: Correct answers / total reviews
+- **Ease Factor**: Spaced repetition multiplier
+- **Next Review**: When card should be reviewed next
+
+### Study Sessions
+
+```sql
+CREATE TABLE flashcard_sessions (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  deck_id UUID NOT NULL,
+  study_mode TEXT,  -- 'flip', 'mcq', 'type'
+  cards_studied INTEGER DEFAULT 0,
+  cards_correct INTEGER DEFAULT 0,
+  duration_seconds INTEGER,
+  session_data JSONB,
+  completed_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+<CardGroup cols={3}>
+  <Card title="Flip Mode" icon="repeat">
+    Traditional flashcard flipping
+  </Card>
+  <Card title="MCQ Mode" icon="list-check">
+    Multiple choice questions
+  </Card>
+  <Card title="Type Mode" icon="keyboard">
+    Type the answer
+  </Card>
+</CardGroup>
+
+## Practice Test Analytics
+
+Track performance on practice tests with AI-powered feedback.
+
+### Attempt Tracking
+
+```sql
+CREATE TABLE practice_test_attempts (
+  id UUID PRIMARY KEY,
+  test_id UUID REFERENCES practice_tests(id),
+  user_id UUID REFERENCES auth.users(id),
+  answers JSONB NOT NULL,
+  score INTEGER,
+  max_score INTEGER,
+  time_taken_seconds INTEGER,
+  ai_feedback JSONB,  -- AI-generated performance insights
+  completed_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**AI Feedback Includes:**
+- Strengths and weaknesses analysis
+- Topic-specific recommendations
+- Study suggestions
+- Improvement strategies
+
+## Daily Goals Analytics
+
+Track your progress toward daily study targets.
+
+### Goal Progress
+
+```sql
+CREATE TABLE daily_goal_progress (
+  user_id UUID,
+  goal_date DATE,
+  minutes_done INTEGER DEFAULT 0,
+  sessions_done INTEGER DEFAULT 0,
+  tasks_done INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ,
+  PRIMARY KEY (user_id, goal_date)
+);
+```
+
+### Viewing Progress
+
+```javascript
+// Get today's progress
+GET /api/goals/daily/today
+
+{
+  goal_date: "2026-03-03",
+  targets: {
+    minutes: 60,
+    sessions: 2,
+    tasks: 3
+  },
+  progress: {
+    minutes_done: 45,
+    sessions_done: 1,
+    tasks_done: 2
+  },
+  completion: {
+    minutes: 75%,
+    sessions: 50%,
+    tasks: 67%,
+    overall: 64%
+  }
+}
+```
+
+<Tip>
+Daily goals automatically update as you use different study tools. No manual tracking needed!
+</Tip>
+
+## Habit Analytics
+
+Visualize habit consistency with check-in history.
+
+### Check-in History
+
+```javascript
+// Get habit check-ins for date range
+GET /api/goals/habits/checkins?from=2026-03-01&to=2026-03-31
+
+{
+  checkins: [
+    {
+      habit_id: "uuid",
+      checkin_date: "2026-03-03",
+      done: true
+    },
+    // ...
+  ],
+  stats: {
+    total_days: 31,
+    completed_days: 24,
+    completion_rate: 77.4,
+    current_streak: 7,
+    longest_streak: 12
+  }
+}
+```
+
+### Habit Performance
+
+<CardGroup cols={2}>
+  <Card title="Completion Rate" icon="percent">
+    Percentage of days you completed the habit
+  </Card>
+  <Card title="Streak Tracking" icon="fire">
+    Current and longest streak for each habit
+  </Card>
+  <Card title="Calendar View" icon="calendar">
+    Visual heatmap of check-ins
+  </Card>
+  <Card title="Trend Analysis" icon="chart-line">
+    Identify patterns and improvements
+  </Card>
+</CardGroup>
+
+## Performance Visualization
+
+While the API provides raw data, the frontend can create powerful visualizations:
+
+### Chart Types
+
+- **Line Charts**: Score trends over time
+- **Bar Charts**: Activity breakdown by type
+- **Pie Charts**: Time distribution across subjects
+- **Heatmaps**: Study streak calendars
+- **Radar Charts**: Multi-dimensional skill assessment
+- **Progress Bars**: Goal completion status
+
+### Time Range Filters
+
+- Last 7 days
+- Last 30 days
+- Last 3 months
+- All time
+- Custom date range
+
+## Export & Reports
+
+Generate comprehensive study reports for personal review or sharing with instructors.
+
+### Weekly Reviews
+
+<Note>
+Generating your first weekly review earns you the "Weekly Review" badge!
+</Note>
+
+**Report Contents:**
+- Total study time
+- Activities completed
+- Quiz performance summary
+- Goals achievement rate
+- Habit consistency
+- Streak status
+- Recommendations for improvement
+
+## Privacy & Data Access
+
+All analytics data is private by default:
+
+```sql
+-- Row Level Security ensures users only see their own data
+CREATE POLICY "Users can view own quiz results"
+  ON quiz_results FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own study activity"
+  ON study_activity FOR SELECT
+  USING (auth.uid() = user_id);
+```
+
+<CardGroup cols={2}>
+  <Card title="Private by Default" icon="lock">
+    Only you can see your detailed analytics
+  </Card>
+  <Card title="Selective Sharing" icon="share">
+    Choose what to share on leaderboards
+  </Card>
+  <Card title="Data Ownership" icon="user">
+    Your data belongs to you
+  </Card>
+  <Card title="Export Anytime" icon="download">
+    Download your data whenever you want
+  </Card>
+</CardGroup>
+
+## Integration with Gamification
+
+Analytics data powers the gamification system:
+
+- Activity tracking → Streak calculation
+- Quiz completion → XP awards
+- Daily goals → Challenge progress
+- Study time → Milestones
+
+Your progress is automatically tracked across all features, giving you a comprehensive view of your learning journey!

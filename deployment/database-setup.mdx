@@ -1,0 +1,502 @@
+---
+title: Database Setup
+description: Configure the Supabase PostgreSQL database schema for inspir
+---
+
+## Overview
+
+inspir uses Supabase (PostgreSQL) for all data storage, including user authentication, quizzes, notes, study tracking, and more.
+
+<Warning>
+The application will not function without proper database setup. Complete this guide before running the application.
+</Warning>
+
+## Step 1: Create a Supabase Project
+
+<Steps>
+
+<Step title="Sign up for Supabase">
+
+Go to [Supabase](https://supabase.com) and create an account if you don't have one.
+
+</Step>
+
+<Step title="Create a new project">
+
+1. Click **New Project**
+2. Choose your organization
+3. Enter project details:
+   - **Name:** inspir (or your preferred name)
+   - **Database Password:** Use a strong password (save this!)
+   - **Region:** Choose closest to your users
+   - **Pricing Plan:** Free tier works for development
+
+4. Click **Create new project**
+
+Wait 2-3 minutes for the project to initialize.
+
+</Step>
+
+<Step title="Get your API credentials">
+
+Once the project is ready:
+
+1. Go to **Settings** → **API**
+2. Copy the following values:
+   - **Project URL** (e.g., `https://xxxxxxxxxxx.supabase.co`)
+   - **anon/public key** (starts with `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`)
+   - **service_role key** (starts with `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`)
+
+<Warning>
+The **service_role key** has full database access. Never expose it in frontend code or commit it to version control.
+</Warning>
+
+</Step>
+
+</Steps>
+
+## Step 2: Run Database Migrations
+
+The database schema is defined in SQL migration files located in `backend/` directory.
+
+### Core Schema (Required)
+
+This creates the essential tables for quizzes, results, and user data.
+
+<Steps>
+
+<Step title="Open SQL Editor">
+
+1. In your Supabase Dashboard, click **SQL Editor** in the left sidebar
+2. Click **New query**
+
+</Step>
+
+<Step title="Run the core schema">
+
+Copy the contents of `backend/database-schema.sql` and paste into the SQL Editor:
+
+<CodeGroup>
+
+```sql Core Schema (database-schema.sql)
+-- Quiz Generation App Database Schema
+-- Run this in your Supabase SQL Editor
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Quizzes table
+CREATE TABLE IF NOT EXISTS quizzes (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  source_name TEXT NOT NULL,
+  questions JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Quiz results table
+CREATE TABLE IF NOT EXISTS quiz_results (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
+  score INTEGER NOT NULL,
+  total_questions INTEGER NOT NULL,
+  percentage INTEGER NOT NULL,
+  answers JSONB NOT NULL,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_quizzes_user_id ON quizzes(user_id);
+CREATE INDEX IF NOT EXISTS idx_quizzes_created_at ON quizzes(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_quiz_results_user_id ON quiz_results(user_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_results_quiz_id ON quiz_results(quiz_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_results_submitted_at ON quiz_results(submitted_at DESC);
+
+-- Enable Row Level Security
+ALTER TABLE quizzes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quiz_results ENABLE ROW LEVEL SECURITY;
+
+-- Policies for quizzes table
+CREATE POLICY "Users can view their own quizzes"
+  ON quizzes FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create quizzes"
+  ON quizzes FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own quizzes"
+  ON quizzes FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Policies for quiz_results table
+CREATE POLICY "Users can view their own results"
+  ON quiz_results FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create results"
+  ON quiz_results FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own results"
+  ON quiz_results FOR DELETE
+  USING (auth.uid() = user_id);
+```
+
+</CodeGroup>
+
+Click **Run** or press `Ctrl+Enter`.
+
+You should see: ✅ **Success. No rows returned**
+
+</Step>
+
+</Steps>
+
+### Quiz Sharing Feature (Required)
+
+Enables quiz sharing and attempt tracking.
+
+<Steps>
+
+<Step title="Run the sharing migration">
+
+Copy the contents of `backend/database-migration-sharing.sql` and run it:
+
+<CodeGroup>
+
+```sql Quiz Sharing (database-migration-sharing.sql)
+-- Quiz Sharing Feature Migration
+
+-- Update quizzes table for sharing
+ALTER TABLE quizzes
+  ADD COLUMN IF NOT EXISTS share_token TEXT UNIQUE,
+  ADD COLUMN IF NOT EXISTS is_shared BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_by_username TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_quizzes_share_token 
+  ON quizzes(share_token) WHERE share_token IS NOT NULL;
+
+-- Create quiz_attempts table
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quiz_id UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  attempt_name TEXT NOT NULL,
+  is_guest BOOLEAN DEFAULT false,
+  score INTEGER NOT NULL,
+  total_questions INTEGER NOT NULL,
+  percentage INTEGER NOT NULL,
+  answers JSONB NOT NULL,
+  completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT valid_attempt_name 
+    CHECK (char_length(trim(attempt_name)) > 0 AND char_length(attempt_name) <= 50),
+  CONSTRAINT valid_score 
+    CHECK (score >= 0 AND score <= total_questions),
+  CONSTRAINT valid_percentage 
+    CHECK (percentage >= 0 AND percentage <= 100)
+);
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz_id ON quiz_attempts(quiz_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts(user_id) 
+  WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_completed_at ON quiz_attempts(completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_is_guest ON quiz_attempts(is_guest);
+
+-- Enable RLS
+ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Anyone can create quiz attempts"
+  ON quiz_attempts FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Quiz creators can view attempts on their quizzes"
+  ON quiz_attempts FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM quizzes
+      WHERE quizzes.id = quiz_attempts.quiz_id
+      AND quizzes.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can view their own attempts"
+  ON quiz_attempts FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Update quizzes policy for shared quizzes
+DROP POLICY IF EXISTS "Users can view their own quizzes" ON quizzes;
+
+CREATE POLICY "Users can view their own quizzes or shared quizzes"
+  ON quizzes FOR SELECT
+  USING (auth.uid() = user_id OR is_shared = true);
+```
+
+</CodeGroup>
+
+</Step>
+
+</Steps>
+
+### Complete Features Schema (Optional)
+
+For all 53 study tools (flashcards, Cornell notes, streaks, doubt solver, forum, etc.).
+
+<Steps>
+
+<Step title="Run the complete schema">
+
+Copy the contents of `backend/database-complete-setup.sql` and run it.
+
+This creates tables for:
+- Citations (MLA, APA, Chicago, Harvard)
+- Cornell Notes (cues, notes, summary)
+- Study Streaks & Activity Tracking
+- Doubt Solver (homework helper)
+- Waitlist (coming soon features)
+
+<Note>
+This file is ~370 lines. You can find it at `backend/database-complete-setup.sql`.
+</Note>
+
+</Step>
+
+</Steps>
+
+### All Features Schema (Optional)
+
+For every single feature including flashcards, mind maps, concept maps, math solver, forum, etc.
+
+<Steps>
+
+<Step title="Run the all-features schema">
+
+Copy the contents of `backend/database-all-features.sql` and run it.
+
+This creates 30+ tables for all features.
+
+</Step>
+
+</Steps>
+
+## Step 3: Verify Database Setup
+
+<Steps>
+
+<Step title="Check tables were created">
+
+Run this query in the SQL Editor:
+
+```sql
+SELECT 
+  schemaname,
+  tablename,
+  tableowner
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY tablename;
+```
+
+You should see tables like:
+- `quizzes`
+- `quiz_results`
+- `quiz_attempts`
+- `citations`
+- `cornell_notes`
+- `study_activity`
+- `user_streaks`
+- And more (depending on which schema you ran)
+
+</Step>
+
+<Step title="Verify RLS is enabled">
+
+Run this query:
+
+```sql
+SELECT 
+  tablename, 
+  rowsecurity 
+FROM pg_tables 
+WHERE schemaname = 'public' 
+  AND rowsecurity = true;
+```
+
+All tables should have Row Level Security enabled.
+
+</Step>
+
+</Steps>
+
+## Database Schema Overview
+
+### Core Tables
+
+| Table | Description | Key Columns |
+|-------|-------------|-------------|
+| `quizzes` | Generated quizzes | `id`, `user_id`, `source_name`, `questions` (JSONB), `share_token` |
+| `quiz_results` | Quiz scores and answers | `id`, `user_id`, `quiz_id`, `score`, `percentage`, `answers` (JSONB) |
+| `quiz_attempts` | Shared quiz attempts | `id`, `quiz_id`, `attempt_name`, `is_guest`, `score`, `answers` (JSONB) |
+
+### Study Tools Tables
+
+| Table | Description |
+|-------|-------------|
+| `flashcard_decks` | Flashcard collections with spaced repetition |
+| `flashcard_progress` | Individual card mastery tracking |
+| `flashcard_sessions` | Study session history |
+| `mind_maps` | Mind map diagrams (nodes + edges) |
+| `concept_maps` | Concept relationship maps |
+| `cornell_notes` | Cornell-style structured notes |
+| `citations` | Generated citations (MLA, APA, etc.) |
+| `citation_projects` | Citation collections/bibliographies |
+
+### Gamification Tables
+
+| Table | Description |
+|-------|-------------|
+| `study_activity` | Daily study activity log |
+| `user_streaks` | Streak tracking (current, longest, total days) |
+| `user_stats` | XP, level, badges |
+| `daily_goals` | Daily study goals |
+| `habit_tracker` | Habit completion tracking |
+
+### AI Help Tables
+
+| Table | Description |
+|-------|-------------|
+| `doubt_questions` | Homework help questions and solutions |
+| `doubt_shares` | Shareable solution links |
+| `math_solutions` | Math problem step-by-step solutions |
+| `text_summaries` | AI-generated summaries |
+| `study_guides` | AI-generated study guides |
+
+### Social Tables
+
+| Table | Description |
+|-------|-------------|
+| `forum_posts` | Student forum posts |
+| `forum_replies` | Forum post replies |
+| `forum_votes` | Upvote/downvote tracking |
+| `study_groups` | Study group metadata |
+| `group_members` | Group membership |
+
+## Row Level Security (RLS)
+
+All tables have RLS enabled to ensure data privacy:
+
+### Standard Policies
+
+```sql
+-- Users can only view their own data
+CREATE POLICY "Users can view their own X"
+  ON table_name FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Users can only insert their own data
+CREATE POLICY "Users can create X"
+  ON table_name FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Users can only delete their own data
+CREATE POLICY "Users can delete their own X"
+  ON table_name FOR DELETE
+  USING (auth.uid() = user_id);
+```
+
+### Special Policies
+
+**Shared quizzes** (public read access):
+```sql
+CREATE POLICY "Users can view shared quizzes"
+  ON quizzes FOR SELECT
+  USING (auth.uid() = user_id OR is_shared = true);
+```
+
+**Quiz attempts** (guest access):
+```sql
+CREATE POLICY "Anyone can create quiz attempts"
+  ON quiz_attempts FOR INSERT
+  WITH CHECK (true);
+```
+
+**Forum posts** (public read, authenticated write):
+```sql
+CREATE POLICY "Anyone can view forum posts"
+  ON forum_posts FOR SELECT
+  USING (true);
+```
+
+## Troubleshooting
+
+### Migration Fails with "relation already exists"
+
+This is safe to ignore. The `IF NOT EXISTS` clauses prevent errors on re-runs.
+
+### Policy Conflicts
+
+If you see "policy X already exists", drop and recreate:
+
+```sql
+DROP POLICY IF EXISTS "policy_name" ON table_name;
+CREATE POLICY "policy_name" ON table_name ...
+```
+
+### RLS Blocks All Access
+
+Check if you're authenticated:
+
+```sql
+SELECT auth.uid();  -- Should return your user UUID when logged in
+```
+
+If `NULL`, you're not authenticated. Sign in via the frontend.
+
+### Missing Tables
+
+Re-run the appropriate migration file:
+
+1. Go to **SQL Editor**
+2. Copy the SQL file contents
+3. Run the query
+4. Verify with: `SELECT * FROM pg_tables WHERE schemaname = 'public';`
+
+## Backup and Restore
+
+### Automatic Backups
+
+Supabase provides automatic daily backups (Pro plan and above).
+
+**View backups:**
+1. Go to **Database** → **Backups**
+2. Download or restore from a specific point in time
+
+### Manual Backup
+
+Use `pg_dump` via the connection string:
+
+```bash
+pg_dump "postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres" > backup.sql
+```
+
+### Restore from Backup
+
+```bash
+psql "postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres" < backup.sql
+```
+
+## Next Steps
+
+Database setup is complete! Now configure the application:
+
+<Note>
+Use the API credentials from Step 1 in your environment variables.
+</Note>
+
+[Local Development Setup →](/deployment/local-setup)
+
+[Production Deployment →](/deployment/production)

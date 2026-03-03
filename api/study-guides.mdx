@@ -1,0 +1,481 @@
+---
+title: Study Guides
+description: Generate and manage AI-powered study guides from documents
+---
+
+## Generate Study Guide
+
+<CodeGroup>
+```bash POST /api/study-guide/generate
+curl -X POST https://api.inspir.uk/api/study-guide/generate \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "files=@document.pdf" \
+  -F "title=Biology Chapter 5" \
+  -F "subject=Biology"
+```
+</CodeGroup>
+
+Generate a comprehensive study guide from uploaded documents or text content. Supports optional authentication for saving.
+
+### Request
+
+<ParamField body="files" type="file[]" optional>
+  Upload 1-5 files (PDF, DOCX, or TXT). Max 10MB per file.
+</ParamField>
+
+<ParamField body="content" type="string" optional>
+  Text content to generate study guide from. Required if no files uploaded.
+</ParamField>
+
+<ParamField body="title" type="string" optional>
+  Custom title for the study guide. Auto-generated if not provided.
+</ParamField>
+
+<ParamField body="subject" type="string" optional>
+  Subject area (e.g., Biology, History, Mathematics). Auto-detected if not provided.
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="guide" type="object">
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      Study guide ID (null if not authenticated)
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Title of the study guide
+    </ResponseField>
+    
+    <ResponseField name="subject" type="string">
+      Subject area
+    </ResponseField>
+    
+    <ResponseField name="sourceMaterials" type="string[]">
+      List of uploaded file names
+    </ResponseField>
+    
+    <ResponseField name="overview" type="string">
+      Brief overview of the topic (2-3 sentences)
+    </ResponseField>
+    
+    <ResponseField name="keyConcepts" type="array">
+      <Expandable title="concept object">
+        <ResponseField name="concept" type="string">
+          Concept name
+        </ResponseField>
+        <ResponseField name="description" type="string">
+          Brief description
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="definitions" type="array">
+      <Expandable title="definition object">
+        <ResponseField name="term" type="string">
+          Term name
+        </ResponseField>
+        <ResponseField name="definition" type="string">
+          Detailed definition (2-3 sentences)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="examples" type="array">
+      <Expandable title="example object">
+        <ResponseField name="title" type="string">
+          Example title
+        </ResponseField>
+        <ResponseField name="description" type="string">
+          Example description
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="questions" type="array">
+      <Expandable title="question object">
+        <ResponseField name="type" type="string">
+          Question type: `multiple_choice`, `short_answer`, or `discussion`
+        </ResponseField>
+        <ResponseField name="question" type="string">
+          Question text
+        </ResponseField>
+        <ResponseField name="options" type="string[]">
+          Answer options (only for multiple_choice)
+        </ResponseField>
+        <ResponseField name="answer" type="string">
+          Correct or sample answer
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="summary" type="string">
+      Summary in 2-3 paragraphs
+    </ResponseField>
+    
+    <ResponseField name="wordCount" type="number">
+      Total word count of the study guide
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "guide": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "Photosynthesis Study Guide",
+    "subject": "Biology",
+    "sourceMaterials": ["chapter5.pdf"],
+    "overview": "Photosynthesis is the process by which plants convert light energy into chemical energy...",
+    "keyConcepts": [
+      {
+        "concept": "Chlorophyll",
+        "description": "The green pigment that absorbs light energy"
+      }
+    ],
+    "definitions": [
+      {
+        "term": "Chlorophyll",
+        "definition": "A green pigment found in chloroplasts that captures light energy for photosynthesis..."
+      }
+    ],
+    "examples": [
+      {
+        "title": "C3 Plants",
+        "description": "Most common type of photosynthesis, used by plants like wheat and rice..."
+      }
+    ],
+    "questions": [
+      {
+        "type": "multiple_choice",
+        "question": "Where does photosynthesis occur?",
+        "options": ["Mitochondria", "Chloroplast", "Nucleus", "Ribosome"],
+        "answer": "Chloroplast"
+      }
+    ],
+    "summary": "Photosynthesis is essential for life on Earth...",
+    "wordCount": 1250
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseField name="error" type="string">
+  Error message
+</ResponseField>
+
+<ResponseField name="details" type="string">
+  Additional error details
+</ResponseField>
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "error": "Content is required"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Failed to parse AI response",
+  "details": "The AI returned an invalid format"
+}
+```
+</ResponseExample>
+
+---
+
+## Get Study Guides
+
+<CodeGroup>
+```bash GET /api/study-guide/
+curl https://api.inspir.uk/api/study-guide/ \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve all study guides for the authenticated user. Returns up to 50 most recent guides.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="guides" type="array">
+  <Expandable title="guide object">
+    <ResponseField name="id" type="string">
+      Study guide ID
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Study guide title
+    </ResponseField>
+    
+    <ResponseField name="subject" type="string">
+      Subject area
+    </ResponseField>
+    
+    <ResponseField name="source_materials" type="string[]">
+      List of source file names
+    </ResponseField>
+    
+    <ResponseField name="word_count" type="number">
+      Total word count
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="updated_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "guides": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "Photosynthesis Study Guide",
+      "subject": "Biology",
+      "source_materials": ["chapter5.pdf"],
+      "word_count": 1250,
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Get Study Guide by ID
+
+<CodeGroup>
+```bash GET /api/study-guide/:id
+curl https://api.inspir.uk/api/study-guide/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve a specific study guide by ID. Access requires authentication if the guide is private.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="guide" type="object">
+  Complete study guide object including all sections and metadata
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "guide": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "user_id": "user123",
+    "title": "Photosynthesis Study Guide",
+    "subject": "Biology",
+    "source_materials": ["chapter5.pdf"],
+    "structure": {
+      "overview": "...",
+      "keyConcepts": [...],
+      "definitions": [...],
+      "examples": [...],
+      "questions": [...],
+      "summary": "..."
+    },
+    "word_count": 1250,
+    "is_editable": true,
+    "is_shared": false,
+    "share_token": null,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseExample>
+```json 404 Not Found
+{
+  "error": "Study guide not found"
+}
+```
+
+```json 403 Forbidden
+{
+  "error": "Access denied"
+}
+```
+</ResponseExample>
+
+---
+
+## Update Study Guide
+
+<CodeGroup>
+```bash PUT /api/study-guide/:id
+curl -X PUT https://api.inspir.uk/api/study-guide/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Updated Title",
+    "subject": "Advanced Biology"
+  }'
+```
+</CodeGroup>
+
+Update a study guide's title, subject, or content structure. Requires ownership.
+
+### Request
+
+<ParamField body="title" type="string" optional>
+  New title
+</ParamField>
+
+<ParamField body="subject" type="string" optional>
+  New subject
+</ParamField>
+
+<ParamField body="structure" type="object" optional>
+  Updated study guide structure
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="guide" type="object">
+  Updated study guide object
+</ResponseField>
+
+### Errors
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "error": "This study guide is not editable"
+}
+```
+</ResponseExample>
+
+---
+
+## Share Study Guide
+
+<CodeGroup>
+```bash POST /api/study-guide/:id/share
+curl -X POST https://api.inspir.uk/api/study-guide/550e8400-e29b-41d4-a716-446655440000/share \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Generate a public share link for a study guide.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="shareUrl" type="string">
+  Public URL to access the shared study guide
+</ResponseField>
+
+<ResponseField name="shareToken" type="string">
+  Unique share token
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "shareUrl": "https://quiz.inspir.uk/shared/study-guide/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7",
+  "shareToken": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7"
+}
+```
+</ResponseExample>
+
+---
+
+## Delete Study Guide
+
+<CodeGroup>
+```bash DELETE /api/study-guide/:id
+curl -X DELETE https://api.inspir.uk/api/study-guide/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Permanently delete a study guide. Requires ownership.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "message": "Study guide deleted successfully"
+}
+```
+</ResponseExample>
+
+---
+
+## Get Shared Study Guide
+
+<CodeGroup>
+```bash GET /api/study-guide/shared/:token
+curl https://api.inspir.uk/api/study-guide/shared/a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7
+```
+</CodeGroup>
+
+Retrieve a publicly shared study guide using its share token. No authentication required.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="guide" type="object">
+  Complete study guide object
+</ResponseField>
+
+<ResponseExample>
+```json 404 Not Found
+{
+  "error": "Study guide not found or not shared"
+}
+```
+</ResponseExample>

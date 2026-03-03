@@ -1,0 +1,345 @@
+---
+title: 'API Introduction'
+description: 'Overview of the inspir REST API, request/response formats, and general patterns'
+---
+
+## Base URL
+
+The inspir API is available at:
+
+```
+https://api.inspir.uk/api
+```
+
+For local development:
+
+```
+http://localhost:3000/api
+```
+
+All API endpoints are prefixed with `/api`. For example, to create a quiz:
+
+```
+POST https://api.inspir.uk/api/quiz/generate
+```
+
+## Request Format
+
+### JSON Requests
+
+Most API endpoints accept JSON request bodies. Include the appropriate `Content-Type` header:
+
+```bash
+curl -X POST https://api.inspir.uk/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "student", "password": "secret123"}'
+```
+
+### File Uploads
+
+Endpoints that accept file uploads use `multipart/form-data`:
+
+```bash
+curl -X POST https://api.inspir.uk/api/quiz/generate \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@document.docx" \
+  -F "sourceName=Biology Notes"
+```
+
+**Supported file types:**
+- `.txt` - Plain text files
+- `.doc` - Microsoft Word (legacy)
+- `.docx` - Microsoft Word (modern)
+
+**File size limit:** 10MB
+
+### Request Size Limits
+
+JSON request bodies are limited to **10MB**.
+
+## Response Format
+
+All API responses are JSON-formatted.
+
+### Success Response
+
+Successful responses return the requested data with a `2xx` status code:
+
+```json
+{
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "student"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Error Response
+
+Error responses include an `error` field with a human-readable message:
+
+```json
+{
+  "error": "Username and password are required"
+}
+```
+
+Some errors include additional context:
+
+```json
+{
+  "error": "Failed to create account",
+  "message": "Database connection timeout"
+}
+```
+
+## HTTP Status Codes
+
+The API uses standard HTTP status codes:
+
+| Code | Meaning | Common Causes |
+|------|---------|---------------|
+| `200` | OK | Request succeeded |
+| `400` | Bad Request | Invalid input, validation error |
+| `401` | Unauthorized | Missing or invalid authentication token |
+| `403` | Forbidden | Valid token but insufficient permissions |
+| `404` | Not Found | Resource doesn't exist |
+| `429` | Too Many Requests | Rate limit exceeded |
+| `500` | Internal Server Error | Server error |
+| `503` | Service Unavailable | AI service overloaded |
+| `504` | Gateway Timeout | AI service timeout |
+
+## Error Handling
+
+### Validation Errors
+
+Validation errors return `400 Bad Request`:
+
+```json
+{
+  "error": "Password must be at least 6 characters"
+}
+```
+
+Common validation errors:
+- `"Username and password are required"`
+- `"Passwords do not match"`
+- `"Username already exists"`
+- `"Only TXT, DOC, and DOCX files are allowed"`
+
+### Authentication Errors
+
+Authentication failures return `401 Unauthorized`:
+
+```json
+{
+  "error": "Invalid or expired token"
+}
+```
+
+Possible authentication errors:
+- `"No authorization token provided"` - Missing Authorization header
+- `"Invalid token"` - Malformed JWT token
+- `"Token expired"` - JWT token has expired (7-day expiration)
+- `"Invalid or expired token"` - Token valid but user not found
+- `"Invalid username or password"` - Login credentials incorrect
+
+See the [Authentication](/api/authentication) guide for details.
+
+### Rate Limit Errors
+
+When rate limits are exceeded, the API returns `429 Too Many Requests`:
+
+```json
+{
+  "error": "Too many authentication attempts",
+  "message": "Please try again in 15 minutes"
+}
+```
+
+Rate limit responses include headers:
+- `RateLimit-Limit` - Maximum requests allowed in the window
+- `RateLimit-Remaining` - Requests remaining in current window
+- `RateLimit-Reset` - Time when the limit resets (Unix timestamp)
+
+See [Rate Limits](#rate-limits) below.
+
+### AI Service Errors
+
+AI-powered endpoints may return service-specific errors:
+
+**503 Service Unavailable** - AI provider overloaded:
+```json
+{
+  "error": "The AI service is currently overloaded. Please try again in a moment."
+}
+```
+
+**504 Gateway Timeout** - AI request timed out:
+```json
+{
+  "error": "The request took too long. Please try with shorter content."
+}
+```
+
+## Rate Limits
+
+The API implements rate limiting to prevent abuse:
+
+### Authentication Endpoints
+
+**Endpoints:** `/api/auth/signup`, `/api/auth/login`
+
+<ParamField path="windowMs" type="number">
+  15 minutes (900,000 ms)
+</ParamField>
+
+<ParamField path="max" type="number">
+  5 attempts per window
+</ParamField>
+
+**Error message:**
+```json
+{
+  "error": "Too many authentication attempts",
+  "message": "Please try again in 15 minutes"
+}
+```
+
+### Quiz Generation
+
+**Endpoints:** `/api/quiz/generate`
+
+<ParamField path="windowMs" type="number">
+  1 hour (3,600,000 ms)
+</ParamField>
+
+<ParamField path="max" type="number">
+  20 quiz generations per hour
+</ParamField>
+
+**Error message:**
+```json
+{
+  "error": "Quiz generation limit exceeded",
+  "message": "You can generate up to 20 quizzes per hour. Please try again later."
+}
+```
+
+### Quiz Submission
+
+**Endpoints:** `/api/quiz/submit`, `/api/quiz/shared/:shareToken/submit`
+
+<ParamField path="windowMs" type="number">
+  5 minutes (300,000 ms)
+</ParamField>
+
+<ParamField path="max" type="number">
+  10 submissions per 5 minutes
+</ParamField>
+
+**Error message:**
+```json
+{
+  "error": "Too many quiz submissions",
+  "message": "Please wait a few minutes before submitting again"
+}
+```
+
+### General API
+
+**All other endpoints**
+
+<ParamField path="windowMs" type="number">
+  15 minutes (900,000 ms)
+</ParamField>
+
+<ParamField path="max" type="number">
+  100 requests per window
+</ParamField>
+
+**Error message:**
+```json
+{
+  "error": "Too many requests",
+  "message": "Please slow down and try again later"
+}
+```
+
+## CORS Policy
+
+The API enforces CORS restrictions. Allowed origins:
+
+- `https://quiz.inspir.uk` (production frontend)
+- `http://localhost:5173` (development frontend)
+- `http://localhost:3000` (local testing)
+- Configured additional origins via `ADDITIONAL_ORIGINS` environment variable
+
+**Allowed methods:** `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
+
+**Allowed headers:** `Content-Type`, `Authorization`
+
+**Credentials:** Supported (cookies and authentication headers)
+
+## Health Check
+
+Check API availability:
+
+```bash
+GET /api/health
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Quiz app backend is running"
+}
+```
+
+## API Patterns
+
+### Optional Authentication
+
+Some endpoints support optional authentication - they work for both guest and authenticated users:
+
+- `/api/quiz/generate` - Guests can generate quizzes but won't save history
+- `/api/quiz/submit` - Guests can submit but won't track progress
+- `/api/quiz/:id` - Anyone can view quizzes they have access to
+
+Authenticated users receive additional features:
+- Quiz history saved
+- Progress tracking
+- Ability to share quizzes
+- Statistics and analytics
+
+### Guest vs Authenticated
+
+Endpoints are categorized as:
+
+1. **Public** - No authentication required (e.g., health check, shared quiz access)
+2. **Optional Auth** - Enhanced features for authenticated users (e.g., quiz generation)
+3. **Required Auth** - Must be authenticated (e.g., quiz history, sharing, user profile)
+
+See [Authentication](/api/authentication) for implementation details.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/api/authentication">
+    Learn how to authenticate with JWT tokens
+  </Card>
+
+  <Card title="Quiz API" icon="circle-question" href="/api/quiz">
+    Generate and manage quizzes
+  </Card>
+
+  <Card title="Doubt Solver" icon="book" href="/api/doubt-solver">
+    Access AI-powered doubt solver
+  </Card>
+
+  <Card title="Study Tools" icon="sparkles" href="/api/study-guides">
+    Access AI-powered study tools
+  </Card>
+</CardGroup>

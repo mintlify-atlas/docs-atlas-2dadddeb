@@ -1,0 +1,340 @@
+---
+title: Local Development Setup
+description: Step-by-step guide to run inspir locally for development
+---
+
+## Prerequisites
+
+Ensure you have the following installed:
+
+- **Node.js 18+** ([Download](https://nodejs.org/))
+- **npm** (comes with Node.js)
+- **Git** ([Download](https://git-scm.com/))
+
+You'll also need:
+
+- A **Supabase project** ([Create one](https://supabase.com/dashboard))
+- An **Anthropic API key** ([Get one](https://console.anthropic.com))
+
+## Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/inspir.git
+cd inspir
+```
+
+## Step 2: Set Up the Database
+
+Before running the application, you must set up the Supabase database schema.
+
+<Warning>
+The application will not work without database setup. Complete this step first.
+</Warning>
+
+[Follow the Database Setup Guide →](/deployment/database-setup)
+
+## Step 3: Configure Backend
+
+<Steps>
+
+<Step title="Navigate to backend directory">
+
+```bash
+cd backend
+```
+
+</Step>
+
+<Step title="Create environment file">
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+</Step>
+
+<Step title="Edit .env file">
+
+Open `backend/.env` and configure the following:
+
+```bash
+# Server Configuration
+PORT=3000
+HOST=0.0.0.0
+FRONTEND_URL=http://localhost:5173
+
+# Anthropic API
+# Get your API key from: https://console.anthropic.com
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# Supabase Configuration
+# Get these from: https://supabase.com/dashboard/project/_/settings/api
+SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# JWT Secret for authentication
+# Generate a strong random string for production
+JWT_SECRET=your_secure_random_string_here_min_32_chars
+```
+
+<Note>
+**Finding your Supabase credentials:**
+
+1. Go to your [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Navigate to **Settings** → **API**
+4. Copy:
+   - **Project URL** → `SUPABASE_URL`
+   - **anon/public key** → `SUPABASE_ANON_KEY`
+   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
+</Note>
+
+</Step>
+
+<Step title="Install dependencies">
+
+```bash
+npm install
+```
+
+</Step>
+
+<Step title="Start the development server">
+
+```bash
+npm run dev
+```
+
+The backend API will start on `http://localhost:3000`
+
+</Step>
+
+</Steps>
+
+## Step 4: Configure Frontend
+
+Open a **new terminal window** (keep the backend running).
+
+<Steps>
+
+<Step title="Navigate to frontend directory">
+
+```bash
+cd frontend
+```
+
+</Step>
+
+<Step title="Create environment file">
+
+```bash
+cp .env.example .env
+```
+
+</Step>
+
+<Step title="Edit .env file">
+
+Open `frontend/.env` and configure:
+
+```bash
+# Supabase Configuration
+# Get these from: https://supabase.com/dashboard/project/_/settings/api
+VITE_SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# API Configuration
+# For local development, use: http://localhost:3000/api
+VITE_API_URL=http://localhost:3000/api
+```
+
+<Warning>
+**Important:** Use the same `SUPABASE_URL` and `SUPABASE_ANON_KEY` as in the backend `.env` file.
+</Warning>
+
+</Step>
+
+<Step title="Install dependencies">
+
+```bash
+npm install
+```
+
+</Step>
+
+<Step title="Start the development server">
+
+```bash
+npm run dev
+```
+
+The frontend will start on `http://localhost:5173`
+
+</Step>
+
+</Steps>
+
+## Step 5: Test the Application
+
+You should now have both servers running:
+
+- **Frontend:** http://localhost:5173
+- **Backend API:** http://localhost:3000
+
+<Steps>
+
+<Step title="Open the application">
+
+Navigate to http://localhost:5173 in your browser.
+
+</Step>
+
+<Step title="Create an account">
+
+Sign up with an email and password. Supabase will handle authentication.
+
+</Step>
+
+<Step title="Test a feature">
+
+Try creating a quiz:
+
+1. Enter a topic or paste some text
+2. Click "Generate Quiz"
+3. Wait for the AI to create questions
+4. Take the quiz and submit answers
+
+</Step>
+
+</Steps>
+
+## Troubleshooting
+
+### Backend won't start
+
+**Check your environment variables:**
+
+```bash
+cd backend
+cat .env
+```
+
+Ensure all required variables are set (no `your_key_here` placeholders).
+
+**Check if port 3000 is in use:**
+
+```bash
+lsof -i :3000  # macOS/Linux
+netstat -ano | findstr :3000  # Windows
+```
+
+### Frontend won't connect to backend
+
+**Verify the API URL:**
+
+Open `frontend/.env` and confirm:
+
+```bash
+VITE_API_URL=http://localhost:3000/api
+```
+
+**Check CORS configuration:**
+
+In `backend/server.js`, ensure `FRONTEND_URL` matches your frontend URL:
+
+```javascript
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+```
+
+### Database connection errors
+
+**Verify Supabase credentials:**
+
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Check **Settings** → **API** for correct keys
+3. Ensure your project is not paused (free tier auto-pauses after inactivity)
+
+**Run database migrations:**
+
+Make sure you've run all SQL schema scripts in the Supabase SQL Editor.
+
+[Database Setup Guide →](/deployment/database-setup)
+
+### AI features not working
+
+**Verify Anthropic API key:**
+
+Test your API key:
+
+```bash
+curl https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
+```
+
+If this fails, check your API key at https://console.anthropic.com
+
+## Development Workflow
+
+### File Watching
+
+Both servers use hot module replacement (HMR):
+
+- **Backend:** Changes to `.js` files automatically restart the server (via `nodemon`)
+- **Frontend:** Changes to React components instantly update in the browser (via Vite HMR)
+
+### Project Structure
+
+```
+inspir/
+├── backend/
+│   ├── server.js           # Express app entry point
+│   ├── routes/             # API route handlers
+│   ├── middleware/         # Custom middleware
+│   ├── .env                # Backend environment variables
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API service functions
+│   │   └── main.jsx        # React entry point
+│   ├── .env                # Frontend environment variables
+│   └── package.json
+└── deploy/                 # Production deployment configs
+```
+
+### Making Changes
+
+1. **Backend changes:** Edit files in `backend/`, server auto-restarts
+2. **Frontend changes:** Edit files in `frontend/src/`, browser auto-updates
+3. **Database changes:** Update SQL scripts and re-run in Supabase SQL Editor
+
+### Running Tests
+
+```bash
+# Backend tests (if available)
+cd backend
+npm test
+
+# Frontend tests (if available)
+cd frontend
+npm test
+```
+
+## Next Steps
+
+<Note>
+Once you're ready to deploy to production, follow the production deployment guide.
+</Note>
+
+[Production Deployment →](/deployment/production)

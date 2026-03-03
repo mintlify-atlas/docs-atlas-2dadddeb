@@ -1,0 +1,514 @@
+---
+title: Community Forum
+description: Q&A forum with questions, answers, upvotes, and reputation system
+---
+
+## List Questions
+
+<CodeGroup>
+```bash GET /api/forum/questions
+curl https://api.inspir.uk/api/forum/questions?tag=Biology
+```
+</CodeGroup>
+
+Get all forum questions with answers, votes, and user information. Public endpoint.
+
+### Query Parameters
+
+<ParamField query="tag" type="string" optional>
+  Filter by tag. Use "All" or omit to get all questions.
+</ParamField>
+
+### Response
+
+<ResponseField name="questions" type="array">
+  <Expandable title="question object">
+    <ResponseField name="id" type="string">
+      Question ID
+    </ResponseField>
+    
+    <ResponseField name="user_id" type="string">
+      Author's user ID
+    </ResponseField>
+    
+    <ResponseField name="user" type="object">
+      Author information (id, username)
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Question title
+    </ResponseField>
+    
+    <ResponseField name="details" type="string">
+      Question details/body
+    </ResponseField>
+    
+    <ResponseField name="tags" type="string[]">
+      Array of tags
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="answers" type="array">
+      Array of answer objects (sorted by votes)
+      
+      <Expandable title="answer object">
+        <ResponseField name="id" type="string">
+          Answer ID
+        </ResponseField>
+        
+        <ResponseField name="question_id" type="string">
+          Parent question ID
+        </ResponseField>
+        
+        <ResponseField name="user_id" type="string">
+          Author's user ID
+        </ResponseField>
+        
+        <ResponseField name="user" type="object">
+          Author information (id, username)
+        </ResponseField>
+        
+        <ResponseField name="text" type="string">
+          Answer content
+        </ResponseField>
+        
+        <ResponseField name="vote_count" type="number">
+          Number of upvotes
+        </ResponseField>
+        
+        <ResponseField name="created_at" type="string">
+          ISO 8601 timestamp
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "questions": [
+    {
+      "id": "q-123",
+      "user_id": "user-456",
+      "user": {
+        "id": "user-456",
+        "username": "biologystudent"
+      },
+      "title": "What is the difference between mitosis and meiosis?",
+      "details": "I'm confused about the key differences between these two processes. Can someone explain?",
+      "tags": ["Biology", "Cell Division"],
+      "created_at": "2024-01-15T10:30:00Z",
+      "answers": [
+        {
+          "id": "a-789",
+          "question_id": "q-123",
+          "user_id": "user-101",
+          "user": {
+            "id": "user-101",
+            "username": "biologyexpert"
+          },
+          "text": "Mitosis produces two identical daughter cells with the same number of chromosomes, while meiosis produces four genetically different cells with half the chromosomes.",
+          "vote_count": 5,
+          "created_at": "2024-01-15T11:00:00Z"
+        }
+      ]
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Get Question
+
+<CodeGroup>
+```bash GET /api/forum/questions/:id
+curl https://api.inspir.uk/api/forum/questions/q-123
+```
+</CodeGroup>
+
+Get a single question with all details. Public endpoint.
+
+### Response
+
+<ResponseField name="question" type="object">
+  Complete question object with answers sorted by votes
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "question": {
+    "id": "q-123",
+    "user_id": "user-456",
+    "user": {
+      "id": "user-456",
+      "username": "biologystudent"
+    },
+    "title": "What is the difference between mitosis and meiosis?",
+    "details": "I'm confused about the key differences...",
+    "tags": ["Biology", "Cell Division"],
+    "created_at": "2024-01-15T10:30:00Z",
+    "answers": [
+      {
+        "id": "a-789",
+        "text": "Mitosis produces two identical daughter cells...",
+        "vote_count": 5,
+        "user": {
+          "id": "user-101",
+          "username": "biologyexpert"
+        },
+        "created_at": "2024-01-15T11:00:00Z"
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseExample>
+```json 404 Not Found
+{
+  "error": "Question not found"
+}
+```
+</ResponseExample>
+
+---
+
+## Create Question
+
+<CodeGroup>
+```bash POST /api/forum/questions
+curl -X POST https://api.inspir.uk/api/forum/questions \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "What is photosynthesis?",
+    "details": "Can someone explain how photosynthesis works?",
+    "tags": ["Biology", "Plants"]
+  }'
+```
+</CodeGroup>
+
+Create a new question in the forum. Requires authentication.
+
+### Request
+
+<ParamField body="title" type="string" required>
+  Question title
+</ParamField>
+
+<ParamField body="details" type="string" required>
+  Question details/body
+</ParamField>
+
+<ParamField body="tags" type="string[]" required>
+  Array of tags (at least one required)
+</ParamField>
+
+### Response
+
+<ResponseField name="question" type="object">
+  Created question object with empty answers array
+</ResponseField>
+
+<ResponseExample>
+```json 201 Created
+{
+  "question": {
+    "id": "q-124",
+    "user_id": "user-456",
+    "user": {
+      "id": "user-456",
+      "username": "biologystudent"
+    },
+    "title": "What is photosynthesis?",
+    "details": "Can someone explain how photosynthesis works?",
+    "tags": ["Biology", "Plants"],
+    "created_at": "2024-01-15T12:00:00Z",
+    "answers": []
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "error": "Title and details are required"
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "At least one tag is required"
+}
+```
+</ResponseExample>
+
+---
+
+## Create Answer
+
+<CodeGroup>
+```bash POST /api/forum/questions/:questionId/answers
+curl -X POST https://api.inspir.uk/api/forum/questions/q-123/answers \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Photosynthesis is the process by which plants convert light energy into chemical energy."
+  }'
+```
+</CodeGroup>
+
+Add an answer to a question. Requires authentication.
+
+### Request
+
+<ParamField body="text" type="string" required>
+  Answer content (non-empty)
+</ParamField>
+
+### Response
+
+<ResponseField name="answer" type="object">
+  Created answer object with vote_count initialized to 0
+</ResponseField>
+
+<ResponseExample>
+```json 201 Created
+{
+  "answer": {
+    "id": "a-790",
+    "question_id": "q-123",
+    "user_id": "user-101",
+    "user": {
+      "id": "user-101",
+      "username": "biologyexpert"
+    },
+    "text": "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+    "vote_count": 0,
+    "created_at": "2024-01-15T12:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "error": "Answer text is required"
+}
+```
+</ResponseExample>
+
+---
+
+## Upvote Answer
+
+<CodeGroup>
+```bash POST /api/forum/answers/:answerId/upvote
+curl -X POST https://api.inspir.uk/api/forum/answers/a-789/upvote \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Upvote an answer. Users can only upvote each answer once. Requires authentication.
+
+### Response
+
+<ResponseField name="vote" type="object">
+  Created vote record
+</ResponseField>
+
+<ResponseExample>
+```json 201 Created
+{
+  "vote": {
+    "id": "v-456",
+    "answer_id": "a-789",
+    "user_id": "user-456",
+    "created_at": "2024-01-15T13:00:00Z"
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "error": "You have already upvoted this answer"
+}
+```
+</ResponseExample>
+
+---
+
+## Remove Upvote
+
+<CodeGroup>
+```bash DELETE /api/forum/answers/:answerId/upvote
+curl -X DELETE https://api.inspir.uk/api/forum/answers/a-789/upvote \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Remove your upvote from an answer. Requires authentication.
+
+### Response
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "message": "Upvote removed successfully"
+}
+```
+</ResponseExample>
+
+---
+
+## Get Leaderboard
+
+<CodeGroup>
+```bash GET /api/forum/leaderboard
+curl https://api.inspir.uk/api/forum/leaderboard
+```
+</CodeGroup>
+
+Get top 10 users by reputation. Public endpoint.
+
+### Response
+
+<ResponseField name="leaderboard" type="array">
+  <Expandable title="entry object">
+    <ResponseField name="user_id" type="string">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="user" type="object">
+      User information (id, username)
+    </ResponseField>
+    
+    <ResponseField name="reputation" type="number">
+      Reputation score
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "leaderboard": [
+    {
+      "user_id": "user-101",
+      "user": {
+        "id": "user-101",
+        "username": "biologyexpert"
+      },
+      "reputation": 1250
+    },
+    {
+      "user_id": "user-202",
+      "user": {
+        "id": "user-202",
+        "username": "mathwhiz"
+      },
+      "reputation": 980
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Get User Reputation
+
+<CodeGroup>
+```bash GET /api/forum/reputation
+curl https://api.inspir.uk/api/forum/reputation \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get the current user's reputation score. Requires authentication.
+
+### Response
+
+<ResponseField name="reputation" type="number">
+  User's reputation score (0 if no reputation record exists)
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "reputation": 450
+}
+```
+
+```json No Reputation
+{
+  "reputation": 0
+}
+```
+</ResponseExample>
+
+---
+
+## Get Forum Stats
+
+<CodeGroup>
+```bash GET /api/forum/stats
+curl https://api.inspir.uk/api/forum/stats
+```
+</CodeGroup>
+
+Get overall forum statistics. Public endpoint.
+
+### Response
+
+<ResponseField name="stats" type="object">
+  <Expandable title="properties">
+    <ResponseField name="total_questions" type="number">
+      Total number of questions
+    </ResponseField>
+    
+    <ResponseField name="total_answers" type="number">
+      Total number of answers
+    </ResponseField>
+    
+    <ResponseField name="total_upvotes" type="number">
+      Total number of upvotes
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "stats": {
+    "total_questions": 1247,
+    "total_answers": 3892,
+    "total_upvotes": 8456
+  }
+}
+```
+</ResponseExample>

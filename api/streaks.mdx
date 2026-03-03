@@ -1,0 +1,329 @@
+---
+title: Study Streaks
+description: Track daily study activity and maintain study streaks
+---
+
+## Log Activity
+
+<CodeGroup>
+```bash POST /api/streaks/activity
+curl -X POST https://api.inspir.uk/api/streaks/activity \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "activityType": "quiz_completed",
+    "timeMinutes": 15
+  }'
+```
+</CodeGroup>
+
+Log a study activity for the current day. Automatically updates streak information.
+
+### Request
+
+<ParamField body="activityType" type="string" required>
+  Type of study activity (e.g., `quiz_completed`, `study_guide_created`, `flashcard_session`)
+</ParamField>
+
+<ParamField body="timeMinutes" type="number" default="0">
+  Duration of activity in minutes
+</ParamField>
+
+### Response
+
+<ResponseField name="activity" type="object">
+  <Expandable title="properties">
+    <ResponseField name="user_id" type="string">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="activity_date" type="string">
+      Date in YYYY-MM-DD format
+    </ResponseField>
+    
+    <ResponseField name="activity_type" type="string">
+      Type of activity
+    </ResponseField>
+    
+    <ResponseField name="activity_count" type="number">
+      Number of activities (incremented on duplicate)
+    </ResponseField>
+    
+    <ResponseField name="total_time_minutes" type="number">
+      Total time spent in minutes
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="streak" type="object">
+  <Expandable title="properties">
+    <ResponseField name="current_streak" type="number">
+      Current consecutive days
+    </ResponseField>
+    
+    <ResponseField name="longest_streak" type="number">
+      Longest streak ever achieved
+    </ResponseField>
+    
+    <ResponseField name="total_study_days" type="number">
+      Total days with study activity
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "activity": {
+    "user_id": "user123",
+    "activity_date": "2024-01-15",
+    "activity_type": "quiz_completed",
+    "activity_count": 1,
+    "total_time_minutes": 15
+  },
+  "streak": {
+    "current_streak": 7,
+    "longest_streak": 14,
+    "total_study_days": 42
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseField name="error" type="string">
+  Error message
+</ResponseField>
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "error": "Activity type is required"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Failed to log study activity"
+}
+```
+</ResponseExample>
+
+---
+
+## Get Current Streak
+
+<CodeGroup>
+```bash GET /api/streaks/current
+curl https://api.inspir.uk/api/streaks/current \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get the current user's streak information.
+
+### Response
+
+<ResponseField name="current_streak" type="number">
+  Current consecutive days with activity
+</ResponseField>
+
+<ResponseField name="longest_streak" type="number">
+  Longest streak ever achieved
+</ResponseField>
+
+<ResponseField name="total_study_days" type="number">
+  Total number of days with study activity
+</ResponseField>
+
+<ResponseField name="last_activity_date" type="string">
+  Date of last activity (YYYY-MM-DD format)
+</ResponseField>
+
+<ResponseField name="streak_freeze_count" type="number">
+  Number of streak freezes available
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "current_streak": 7,
+  "longest_streak": 14,
+  "total_study_days": 42,
+  "last_activity_date": "2024-01-15",
+  "streak_freeze_count": 2
+}
+```
+
+```json No Streak Data
+{
+  "current_streak": 0,
+  "longest_streak": 0,
+  "total_study_days": 0,
+  "last_activity_date": null,
+  "streak_freeze_count": 0
+}
+```
+</ResponseExample>
+
+---
+
+## Get Activity History
+
+<CodeGroup>
+```bash GET /api/streaks/history?days=30
+curl https://api.inspir.uk/api/streaks/history?days=30 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get study activity history for the specified time period.
+
+### Query Parameters
+
+<ParamField query="days" type="number" default="30">
+  Number of days to retrieve (going back from today)
+</ParamField>
+
+### Response
+
+<ResponseField name="activities" type="array">
+  Array of activity records sorted by date (descending)
+  
+  <Expandable title="activity object">
+    <ResponseField name="user_id" type="string">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="activity_date" type="string">
+      Date in YYYY-MM-DD format
+    </ResponseField>
+    
+    <ResponseField name="activity_type" type="string">
+      Type of activity
+    </ResponseField>
+    
+    <ResponseField name="activity_count" type="number">
+      Number of activities
+    </ResponseField>
+    
+    <ResponseField name="total_time_minutes" type="number">
+      Total time spent
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="groupedByDate" type="object">
+  Activities grouped by date for easier consumption
+</ResponseField>
+
+<ResponseField name="totalDays" type="number">
+  Number of unique days with activity in the period
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "activities": [
+    {
+      "user_id": "user123",
+      "activity_date": "2024-01-15",
+      "activity_type": "quiz_completed",
+      "activity_count": 3,
+      "total_time_minutes": 45
+    },
+    {
+      "user_id": "user123",
+      "activity_date": "2024-01-15",
+      "activity_type": "study_guide_created",
+      "activity_count": 1,
+      "total_time_minutes": 20
+    },
+    {
+      "user_id": "user123",
+      "activity_date": "2024-01-14",
+      "activity_type": "quiz_completed",
+      "activity_count": 2,
+      "total_time_minutes": 30
+    }
+  ],
+  "groupedByDate": {
+    "2024-01-15": [
+      {
+        "activity_type": "quiz_completed",
+        "activity_count": 3,
+        "total_time_minutes": 45
+      },
+      {
+        "activity_type": "study_guide_created",
+        "activity_count": 1,
+        "total_time_minutes": 20
+      }
+    ],
+    "2024-01-14": [
+      {
+        "activity_type": "quiz_completed",
+        "activity_count": 2,
+        "total_time_minutes": 30
+      }
+    ]
+  },
+  "totalDays": 2
+}
+```
+</ResponseExample>
+
+---
+
+## Get Activity Stats
+
+<CodeGroup>
+```bash GET /api/streaks/stats?days=30
+curl https://api.inspir.uk/api/streaks/stats?days=30 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get aggregated statistics by activity type for the specified time period.
+
+### Query Parameters
+
+<ParamField query="days" type="number" default="30">
+  Number of days to analyze (going back from today)
+</ParamField>
+
+### Response
+
+Returns an object where keys are activity types and values are aggregated statistics.
+
+<ResponseField name="[activityType]" type="object">
+  <Expandable title="stats object">
+    <ResponseField name="count" type="number">
+      Total number of activities of this type
+    </ResponseField>
+    
+    <ResponseField name="totalTimeMinutes" type="number">
+      Total time spent on this activity type
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "quiz_completed": {
+    "count": 15,
+    "totalTimeMinutes": 225
+  },
+  "study_guide_created": {
+    "count": 3,
+    "totalTimeMinutes": 60
+  },
+  "flashcard_session": {
+    "count": 8,
+    "totalTimeMinutes": 120
+  }
+}
+```
+</ResponseExample>

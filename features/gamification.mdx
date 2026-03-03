@@ -1,0 +1,446 @@
+---
+title: Gamification
+description: Stay motivated with study streaks, XP levels, badges, leaderboards, and daily challenges
+---
+
+inspir includes a comprehensive gamification system to keep you motivated and engaged in your studies. Track your progress, earn rewards, and compete with friends through various game-like mechanics.
+
+## Study Streaks
+
+Maintain your momentum by studying consistently every day. Your streak is automatically tracked across all study activities.
+
+<Note>
+The streak counter uses fire emoji tracking to visualize your consistency. The longer your streak, the more impressive your profile!
+</Note>
+
+### How Streaks Work
+
+Your study streak is maintained through the `user_streaks` and `study_activity` tables:
+
+```sql
+CREATE TABLE user_streaks (
+  user_id UUID PRIMARY KEY,
+  current_streak INTEGER DEFAULT 0,
+  longest_streak INTEGER DEFAULT 0,
+  total_study_days INTEGER DEFAULT 0,
+  last_activity_date DATE,
+  streak_freeze_count INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Tracked Activities:**
+- Quiz completion
+- Timer sessions
+- Taking notes
+- Solving doubts
+- Creating citations
+- And more
+
+**Streak Features:**
+- **Current Streak**: Days you've studied consecutively
+- **Longest Streak**: Your personal best
+- **Total Study Days**: Lifetime study activity
+- **Streak Freeze**: Save your streak during breaks (limited uses)
+
+### API Endpoints
+
+```javascript
+// Log study activity
+POST /api/streaks/activity
+
+// Get current streak
+GET /api/streaks/current
+
+// View activity history
+GET /api/streaks/history
+
+// Get activity statistics
+GET /api/streaks/stats
+```
+
+## XP & Leveling System
+
+Earn experience points (XP) for completing study activities and level up as you progress.
+
+### Level Calculation
+
+Levels are calculated based on total XP:
+- **Level 1**: 0-99 XP
+- **Level 2**: 100-199 XP
+- **Level 3**: 200-299 XP
+- And so on...
+
+Each level requires 100 XP to advance.
+
+```javascript
+function xpToLevel(totalXp) {
+  const level = Math.floor(xp / 100) + 1;
+  const currentLevelBase = (level - 1) * 100;
+  const nextLevelXp = level * 100;
+  return { level, currentLevelBase, nextLevelXp };
+}
+```
+
+### Earning XP
+
+<CardGroup cols={2}>
+  <Card title="Study Activities" icon="book">
+    Complete quizzes, solve doubts, and use study tools to earn XP
+  </Card>
+  <Card title="Achievements" icon="trophy">
+    Unlock badges and complete challenges for bonus XP
+  </Card>
+  <Card title="Daily Goals" icon="target">
+    Meet your daily targets to earn consistent XP
+  </Card>
+  <Card title="Consistency" icon="fire">
+    Maintain study streaks for XP multipliers
+  </Card>
+</CardGroup>
+
+### Database Schema
+
+```sql
+CREATE TABLE user_xp (
+  user_id UUID PRIMARY KEY,
+  total_xp INTEGER DEFAULT 0,
+  level INTEGER DEFAULT 1,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE xp_events (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  delta INTEGER NOT NULL,
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## Badges & Achievements
+
+Unlock badges by completing specific milestones and achievements.
+
+### Default Badges
+
+<CardGroup cols={2}>
+  <Card title="First Login" icon="key">
+    Earned when you sign in for the first time
+  </Card>
+  <Card title="First Task" icon="check">
+    Complete your first task
+  </Card>
+  <Card title="Deep Work Starter" icon="brain">
+    Complete your first deep work session
+  </Card>
+  <Card title="Goal Setter" icon="bullseye">
+    Set your first daily goals
+  </Card>
+  <Card title="Habit Starter" icon="calendar">
+    Create your first habit
+  </Card>
+  <Card title="3-Day Streak" icon="fire">
+    Study for 3 consecutive days
+  </Card>
+  <Card title="7-Day Streak" icon="fire">
+    Study for 7 consecutive days
+  </Card>
+  <Card title="Weekly Review" icon="clipboard">
+    Generate your first weekly report
+  </Card>
+</CardGroup>
+
+### Badge System
+
+```sql
+CREATE TABLE badges (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  icon TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE user_badges (
+  user_id UUID,
+  badge_id TEXT,
+  earned_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, badge_id)
+);
+```
+
+<Tip>
+Badges are automatically awarded when you complete the required actions. Check your profile to see all available badges and your progress!
+</Tip>
+
+## Leaderboards
+
+Compete with other students and see how you rank globally.
+
+### Leaderboard Rankings
+
+The leaderboard is publicly accessible and ranks users by:
+1. **Total XP** (primary sorting)
+2. **Last Activity** (tiebreaker)
+
+```javascript
+// Get top users
+GET /api/gamification/leaderboards?limit=20
+
+// Response includes:
+{
+  success: true,
+  leaderboard: [
+    {
+      rank: 1,
+      user_id: "...",
+      username: "TopStudent",
+      total_xp: 5420,
+      level: 55
+    },
+    // ...
+  ]
+}
+```
+
+<Note>
+Leaderboards are public but only display usernames and XP/level information. Your study activity details remain private.
+</Note>
+
+## Daily Goals
+
+Set personalized daily targets and track your progress throughout the day.
+
+### Goal Types
+
+- **Study Minutes**: Target number of minutes to study
+- **Study Sessions**: Number of focused sessions to complete
+- **Tasks Completed**: Number of tasks to finish
+
+### Setting Goals
+
+```javascript
+// Configure daily goals
+PUT /api/goals/daily/settings
+{
+  target_minutes: 60,
+  target_sessions: 2,
+  target_tasks: 3
+}
+
+// Track today's progress
+GET /api/goals/daily/today
+
+// Update progress
+POST /api/goals/daily/today/increment
+{
+  minutes_delta: 25,
+  sessions_delta: 1,
+  tasks_delta: 1
+}
+```
+
+### Database Schema
+
+```sql
+CREATE TABLE daily_goal_settings (
+  user_id UUID PRIMARY KEY,
+  target_minutes INTEGER DEFAULT 60,
+  target_sessions INTEGER DEFAULT 2,
+  target_tasks INTEGER DEFAULT 3,
+  updated_at TIMESTAMPTZ
+);
+
+CREATE TABLE daily_goal_progress (
+  user_id UUID,
+  goal_date DATE,
+  minutes_done INTEGER DEFAULT 0,
+  sessions_done INTEGER DEFAULT 0,
+  tasks_done INTEGER DEFAULT 0,
+  PRIMARY KEY (user_id, goal_date)
+);
+```
+
+## Challenges
+
+Participate in time-bound challenges to push yourself and earn rewards.
+
+### Challenge Structure
+
+- **Title**: Challenge name
+- **Description**: What needs to be completed
+- **Target Count**: Number of completions required
+- **Start/End Date**: Optional time constraints
+- **Progress Tracking**: Real-time progress updates
+
+### Creating Challenges
+
+```javascript
+POST /api/gamification/challenges
+{
+  title: "30-Day Study Challenge",
+  description: "Study for at least 30 minutes every day for 30 days",
+  target_count: 30,
+  start_date: "2026-03-01",
+  end_date: "2026-03-31"
+}
+```
+
+### Tracking Progress
+
+```javascript
+// Update challenge progress
+POST /api/gamification/challenges/:id/progress
+{
+  delta: 1  // Increment by 1
+}
+
+// View all challenges
+GET /api/gamification/challenges
+```
+
+<CardGroup cols={2}>
+  <Card title="Global Challenges" icon="globe">
+    Platform-wide challenges created by inspir
+  </Card>
+  <Card title="Personal Challenges" icon="user">
+    Custom challenges you create for yourself
+  </Card>
+</CardGroup>
+
+## Habit Tracker
+
+Build consistent study habits with daily check-ins and visual progress tracking.
+
+### Creating Habits
+
+```javascript
+// Create a new habit
+POST /api/goals/habits
+{
+  name: "Review flashcards daily"
+}
+
+// List all habits
+GET /api/goals/habits
+
+// Archive a habit
+PATCH /api/goals/habits/:id
+{
+  is_archived: true
+}
+```
+
+### Daily Check-ins
+
+```javascript
+// Mark today as complete
+POST /api/goals/habits/:id/checkin
+{
+  done: true,
+  checkin_date: "2026-03-03"
+}
+
+// View check-in history
+GET /api/goals/habits/checkins?from=2026-03-01&to=2026-03-31
+```
+
+### Database Schema
+
+```sql
+CREATE TABLE habits (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  name TEXT NOT NULL,
+  is_archived BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE habit_checkins (
+  habit_id UUID,
+  user_id UUID,
+  checkin_date DATE,
+  done BOOLEAN DEFAULT TRUE,
+  PRIMARY KEY (habit_id, checkin_date)
+);
+```
+
+<Tip>
+Habits with consistent check-ins contribute to your study streak and earn bonus XP!
+</Tip>
+
+## Accountability Partners
+
+Pair up with another student to keep each other motivated and accountable.
+
+### Setting Up
+
+```javascript
+// Connect with a partner by username
+POST /api/gamification/accountability/partner
+{
+  username: "studybuddy123"
+}
+
+// View your partner
+GET /api/gamification/accountability/partner
+```
+
+### Check-ins
+
+```javascript
+// Send a check-in message
+POST /api/gamification/accountability/checkins
+{
+  message: "Completed 2 hours of studying today!"
+}
+
+// View check-in history
+GET /api/gamification/accountability/checkins?limit=50
+```
+
+<Note>
+Accountability partnerships are reciprocal - when you set a partner, they automatically become your partner too.
+</Note>
+
+## Milestones
+
+Celebrate major achievements with milestone tracking.
+
+### Milestone Types
+
+- **Custom**: User-defined milestones
+- **Automatic**: System-generated for major achievements
+- **Study**: Academic accomplishments
+- **Streak**: Consistency milestones
+
+```javascript
+// Create a milestone
+POST /api/gamification/milestones
+{
+  milestone_type: "study",
+  title: "Completed first exam preparation",
+  metadata: {
+    subject: "Mathematics",
+    score: 95
+  }
+}
+
+// List all milestones
+GET /api/gamification/milestones?limit=50
+```
+
+## Integration with Study Tools
+
+All study activities automatically integrate with the gamification system:
+
+- **Quiz Completion** → XP + Streak Progress
+- **Doubt Solving** → XP + Daily Goals
+- **Flashcard Study** → XP + Session Count
+- **Timer Sessions** → Study Minutes + Streak
+- **Note Taking** → XP + Activity Tracking
+
+<Tip>
+The more you use inspir's study tools, the more you'll level up naturally while improving your academic performance!
+</Tip>

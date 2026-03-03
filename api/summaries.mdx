@@ -1,0 +1,358 @@
+---
+title: Text Summaries
+description: AI-powered text summarization with customizable length and format
+---
+
+## Generate Summary
+
+<CodeGroup>
+```bash POST /api/summarizer/generate
+curl -X POST https://api.inspir.uk/api/summarizer/generate \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@document.pdf" \
+  -F "length=medium" \
+  -F "format=bullets" \
+  -F "includeKeyConcepts=true"
+```
+</CodeGroup>
+
+Generate an AI-powered summary from uploaded files or text content. Supports optional authentication for saving.
+
+### Request
+
+<ParamField body="file" type="file" optional>
+  Upload a single file (PDF, DOCX, or TXT). Max 10MB.
+</ParamField>
+
+<ParamField body="content" type="string" optional>
+  Text content to summarize. Required if no file uploaded.
+</ParamField>
+
+<ParamField body="length" type="string" default="medium">
+  Summary length: `short` (2-3 sentences), `medium` (1 paragraph), or `long` (2-3 paragraphs)
+</ParamField>
+
+<ParamField body="format" type="string" default="bullets">
+  Output format: `bullets` or `paragraph`
+</ParamField>
+
+<ParamField body="includeKeyConcepts" type="boolean" default="true">
+  Extract 5-8 key concepts/terms from the content
+</ParamField>
+
+<ParamField body="title" type="string" optional>
+  Custom title for the summary. Auto-generated if not provided.
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="summary" type="string | string[]">
+  Summary text (string for paragraph format, array for bullets format)
+</ResponseField>
+
+<ResponseField name="keyConcepts" type="string[]">
+  List of key concepts extracted from the content
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Title of the summary
+</ResponseField>
+
+<ResponseField name="wordCount" type="object">
+  <Expandable title="properties">
+    <ResponseField name="original" type="number">
+      Word count of original content
+    </ResponseField>
+    
+    <ResponseField name="summary" type="number">
+      Word count of summary
+    </ResponseField>
+    
+    <ResponseField name="reduction" type="number">
+      Percentage reduction (0-100)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="summaryId" type="string">
+  Summary ID (null if not authenticated)
+</ResponseField>
+
+<ResponseField name="format" type="string">
+  Output format used
+</ResponseField>
+
+<ResponseField name="length" type="string">
+  Summary length used
+</ResponseField>
+
+<ResponseExample>
+```json Response (Bullets)
+{
+  "success": true,
+  "summary": [
+    "Photosynthesis is the process by which plants convert light energy into chemical energy stored in glucose.",
+    "The process occurs in chloroplasts and requires carbon dioxide, water, and sunlight.",
+    "Oxygen is released as a byproduct, which is essential for most life on Earth."
+  ],
+  "keyConcepts": [
+    "Photosynthesis",
+    "Chloroplast",
+    "Chlorophyll",
+    "Carbon dioxide",
+    "Glucose"
+  ],
+  "title": "Overview of Photosynthesis",
+  "wordCount": {
+    "original": 1500,
+    "summary": 45,
+    "reduction": 97
+  },
+  "summaryId": "550e8400-e29b-41d4-a716-446655440000",
+  "format": "bullets",
+  "length": "medium"
+}
+```
+
+```json Response (Paragraph)
+{
+  "success": true,
+  "summary": "Photosynthesis is the fundamental process by which plants convert light energy into chemical energy. Taking place in specialized organelles called chloroplasts, this process uses carbon dioxide from the air and water from the soil, powered by sunlight captured by chlorophyll. The end products are glucose, which stores energy for the plant, and oxygen, which is released into the atmosphere.",
+  "keyConcepts": [
+    "Photosynthesis",
+    "Chloroplast",
+    "Chlorophyll",
+    "Carbon dioxide",
+    "Glucose"
+  ],
+  "title": "Overview of Photosynthesis",
+  "wordCount": {
+    "original": 1500,
+    "summary": 62,
+    "reduction": 96
+  },
+  "summaryId": "550e8400-e29b-41d4-a716-446655440000",
+  "format": "paragraph",
+  "length": "medium"
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseField name="error" type="string">
+  Error message
+</ResponseField>
+
+<ResponseField name="details" type="string">
+  Additional error details
+</ResponseField>
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "error": "Content is required"
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid summary length"
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Failed to process file",
+  "details": "Unsupported file type"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Failed to parse AI response",
+  "details": "The AI returned an invalid format"
+}
+```
+</ResponseExample>
+
+---
+
+## Get Summary History
+
+<CodeGroup>
+```bash GET /api/summarizer/history
+curl https://api.inspir.uk/api/summarizer/history \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve all summaries for the authenticated user. Returns up to 50 most recent summaries.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="summaries" type="array">
+  <Expandable title="summary object">
+    <ResponseField name="id" type="string">
+      Summary ID
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Summary title
+    </ResponseField>
+    
+    <ResponseField name="summary_text" type="string | string[]">
+      Summary content (parsed for bullets format)
+    </ResponseField>
+    
+    <ResponseField name="key_concepts" type="string[]">
+      List of key concepts
+    </ResponseField>
+    
+    <ResponseField name="summary_length" type="string">
+      Summary length: `short`, `medium`, or `long`
+    </ResponseField>
+    
+    <ResponseField name="output_format" type="string">
+      Output format: `bullets` or `paragraph`
+    </ResponseField>
+    
+    <ResponseField name="word_count" type="object">
+      Word count statistics (original and summary)
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "summaries": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "Overview of Photosynthesis",
+      "summary_text": [
+        "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+        "The process occurs in chloroplasts and requires carbon dioxide, water, and sunlight."
+      ],
+      "key_concepts": ["Photosynthesis", "Chloroplast", "Glucose"],
+      "summary_length": "medium",
+      "output_format": "bullets",
+      "word_count": {
+        "original": 1500,
+        "summary": 45
+      },
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Get Summary by ID
+
+<CodeGroup>
+```bash GET /api/summarizer/:id
+curl https://api.inspir.uk/api/summarizer/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve a specific summary by ID. Access requires authentication and ownership.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="summary" type="object">
+  Complete summary object including original content (truncated to 10,000 characters)
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "summary": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "user_id": "user123",
+    "title": "Overview of Photosynthesis",
+    "original_content": "Photosynthesis is a process...",
+    "summary_text": [
+      "Photosynthesis is the process by which plants convert light energy..."
+    ],
+    "key_concepts": ["Photosynthesis", "Chloroplast"],
+    "summary_length": "medium",
+    "output_format": "bullets",
+    "word_count": {
+      "original": 1500,
+      "summary": 45
+    },
+    "created_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+### Errors
+
+<ResponseExample>
+```json 404 Not Found
+{
+  "error": "Summary not found"
+}
+```
+
+```json 403 Forbidden
+{
+  "error": "Access denied"
+}
+```
+</ResponseExample>
+
+---
+
+## Delete Summary
+
+<CodeGroup>
+```bash DELETE /api/summarizer/:id
+curl -X DELETE https://api.inspir.uk/api/summarizer/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Permanently delete a summary. Requires ownership.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "message": "Summary deleted successfully"
+}
+```
+</ResponseExample>

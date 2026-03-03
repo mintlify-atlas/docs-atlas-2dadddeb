@@ -1,0 +1,408 @@
+---
+title: Social Features
+description: Connect with students, join study groups, share resources, and participate in the student forum
+---
+
+inspir provides powerful social features to help you connect with other students, collaborate on learning, and share knowledge.
+
+## Student Forum
+
+A Stack Overflow-style Q&A forum where students can ask questions, provide answers, and build their reputation.
+
+### Asking Questions
+
+Post questions about any subject and get help from the community.
+
+```javascript
+// Create a new question
+POST /api/forum/questions
+{
+  title: "How do I solve quadratic equations?",
+  details: "I'm struggling with understanding the quadratic formula...",
+  tags: ["mathematics", "algebra", "equations"]
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Rich Formatting" icon="text">
+    Use markdown to format questions with code, formulas, and lists
+  </Card>
+  <Card title="Tag System" icon="tags">
+    Categorize questions with relevant tags for easy discovery
+  </Card>
+  <Card title="Edit & Update" icon="pen">
+    Update your questions anytime to add clarity or context
+  </Card>
+  <Card title="Public Viewing" icon="eye">
+    All questions are publicly viewable by the community
+  </Card>
+</CardGroup>
+
+### Database Schema
+
+```sql
+CREATE TABLE forum_questions (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  title TEXT NOT NULL,
+  details TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Browsing Questions
+
+```javascript
+// Get all questions
+GET /api/forum/questions
+
+// Get specific question with answers
+GET /api/forum/questions/:id
+```
+
+## Answering Questions
+
+Help other students by providing detailed answers to their questions.
+
+### Posting Answers
+
+```javascript
+POST /api/forum/questions/:questionId/answers
+{
+  text: "The quadratic formula is: x = (-b ± √(b²-4ac)) / 2a..."
+}
+```
+
+<Note>
+You earn **+2 reputation points** for every answer you post!
+</Note>
+
+### Answer Schema
+
+```sql
+CREATE TABLE forum_answers (
+  id UUID PRIMARY KEY,
+  question_id UUID REFERENCES forum_questions(id),
+  user_id UUID REFERENCES users(id),
+  text TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## Upvoting System
+
+Recognize helpful answers by upvoting them. The best answers rise to the top!
+
+### How Upvoting Works
+
+```javascript
+// Upvote an answer
+POST /api/forum/answers/:answerId/upvote
+
+// Remove upvote
+DELETE /api/forum/answers/:answerId/upvote
+```
+
+**Reputation System:**
+- Author receives **+10 reputation** when their answer is upvoted
+- Author loses **-10 reputation** when upvote is removed
+- One vote per user per answer (enforced by database constraint)
+
+### Votes Schema
+
+```sql
+CREATE TABLE forum_votes (
+  id UUID PRIMARY KEY,
+  answer_id UUID REFERENCES forum_answers(id),
+  user_id UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(answer_id, user_id)
+);
+```
+
+### Automatic Reputation Updates
+
+Reputation is automatically calculated using database triggers:
+
+```sql
+-- Triggered when answer gets upvoted
+CREATE FUNCTION update_reputation_on_vote() RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO user_reputation (user_id, reputation)
+  SELECT user_id, 10
+  FROM forum_answers WHERE id = NEW.answer_id
+  ON CONFLICT (user_id)
+  DO UPDATE SET reputation = user_reputation.reputation + 10;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Reputation & Leaderboard
+
+Build your reputation by contributing quality answers and earning upvotes.
+
+### Viewing Reputation
+
+```javascript
+// Get your reputation
+GET /api/forum/reputation
+
+// View forum leaderboard
+GET /api/forum/leaderboard
+
+// Get forum statistics
+GET /api/forum/stats
+```
+
+### Reputation Schema
+
+```sql
+CREATE TABLE user_reputation (
+  user_id UUID PRIMARY KEY,
+  reputation INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+<Tip>
+High reputation unlocks additional privileges and showcases your expertise to the community!
+</Tip>
+
+## Study Groups
+
+Create or join study groups to collaborate with classmates and study together.
+
+### Creating a Study Group
+
+```javascript
+POST /api/social/groups
+{
+  name: "AP Physics Study Group",
+  description: "Preparing for the AP Physics exam together",
+  is_private: false
+}
+```
+
+**Features:**
+- **Join Codes**: Unique 6-character codes for easy joining
+- **Private Groups**: Restrict access to invited members only
+- **Member Roles**: Owner and member roles with different permissions
+- **Group Resources**: Share materials within the group
+
+### Joining Groups
+
+```javascript
+// Join using a join code
+POST /api/social/groups/join/:joinCode
+
+// Example: POST /api/social/groups/join/ABC123
+```
+
+### Group Schema
+
+```sql
+CREATE TABLE study_groups (
+  id UUID PRIMARY KEY,
+  owner_user_id UUID NOT NULL,
+  join_code VARCHAR(6) UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  is_private BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE study_group_memberships (
+  group_id UUID,
+  user_id UUID,
+  role TEXT DEFAULT 'member',  -- 'owner' or 'member'
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (group_id, user_id)
+);
+```
+
+### Managing Groups
+
+<CardGroup cols={2}>
+  <Card title="View Your Groups" icon="users">
+    See all groups you've created or joined
+  </Card>
+  <Card title="Group Details" icon="info">
+    View members, resources, and group information
+  </Card>
+  <Card title="Member Management" icon="user-plus">
+    Invite members via join code
+  </Card>
+  <Card title="Resource Sharing" icon="share">
+    Share study materials with group members
+  </Card>
+</CardGroup>
+
+```javascript
+// List your groups
+GET /api/social/groups
+
+// Get group details
+GET /api/social/groups/:id
+```
+
+## Resource Sharing
+
+Share helpful study materials, websites, and documents with the community or specific study groups.
+
+### Sharing Resources
+
+```javascript
+POST /api/social/resources
+{
+  title: "Khan Academy - Calculus",
+  url: "https://www.khanacademy.org/math/calculus",
+  description: "Excellent video tutorials on calculus fundamentals",
+  tags: ["calculus", "mathematics", "videos"],
+  group_id: "optional-group-id"  // Share with specific group
+}
+```
+
+### Resource Features
+
+- **Public or Group-Specific**: Share globally or within a study group
+- **Tagging**: Organize resources with tags
+- **URL Validation**: Must be valid HTTP/HTTPS links
+- **User Attribution**: See who shared each resource
+
+### Resource Schema
+
+```sql
+CREATE TABLE shared_resources (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  group_id UUID,  -- NULL for public resources
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  tags TEXT[],
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Browsing Resources
+
+```javascript
+// View all public resources
+GET /api/social/resources?limit=50
+
+// Filter by study group
+GET /api/social/resources?group_id=abc-123
+```
+
+<Note>
+Resources shared within private study groups are only visible to group members.
+</Note>
+
+## Community Guidelines
+
+### Forum Etiquette
+
+<Card title="Be Respectful" icon="heart">
+  Treat all community members with respect. No harassment, bullying, or discriminatory language.
+</Card>
+
+<Card title="Stay On Topic" icon="bullseye">
+  Keep questions and answers focused on educational content and study-related topics.
+</Card>
+
+<Card title="Provide Quality Answers" icon="star">
+  Take time to write clear, helpful answers. Include explanations, not just solutions.
+</Card>
+
+<Card title="Give Credit" icon="quote">
+  When sharing resources or solutions from other sources, provide proper attribution.
+</Card>
+
+<Card title="No Plagiarism" icon="shield">
+  Don't copy homework or exam answers. Focus on understanding concepts.
+</Card>
+
+### Content Moderation
+
+- Users can edit or delete their own questions and answers
+- Inappropriate content should be reported
+- Maintain academic integrity
+- Help create a positive learning environment
+
+## Privacy & Permissions
+
+### Row Level Security (RLS)
+
+All social features use database-level security:
+
+```sql
+-- Users can view all questions (public)
+CREATE POLICY "Anyone can view questions"
+  ON forum_questions FOR SELECT
+  USING (true);
+
+-- Users can only edit their own content
+CREATE POLICY "Users can update their own questions"
+  ON forum_questions FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Group members can view group resources
+CREATE POLICY "Members can view group resources"
+  ON shared_resources FOR SELECT
+  USING (
+    group_id IS NULL OR
+    EXISTS (
+      SELECT 1 FROM study_group_memberships
+      WHERE group_id = shared_resources.group_id
+      AND user_id = auth.uid()
+    )
+  );
+```
+
+<Tip>
+All your forum posts, answers, and shared resources are associated with your username. Choose a username you're comfortable sharing publicly!
+</Tip>
+
+## Integration with Other Features
+
+Social features work seamlessly with inspir's other tools:
+
+- **Share Quiz Links**: Post quizzes in study groups
+- **Share Doubt Solutions**: Link to solved problems in forum answers
+- **Group Challenges**: Create challenges for study group members
+- **Reputation & XP**: Forum activity contributes to your overall XP
+
+## API Reference
+
+### Forum Endpoints
+
+```javascript
+GET    /api/forum/questions           // List all questions
+GET    /api/forum/questions/:id       // Get question details
+POST   /api/forum/questions           // Create question (auth required)
+POST   /api/forum/questions/:id/answers  // Answer question (auth required)
+POST   /api/forum/answers/:id/upvote     // Upvote answer (auth required)
+DELETE /api/forum/answers/:id/upvote     // Remove upvote (auth required)
+GET    /api/forum/leaderboard            // View reputation leaderboard
+GET    /api/forum/reputation              // Get your reputation (auth required)
+```
+
+### Study Group Endpoints
+
+```javascript
+GET  /api/social/groups              // List your groups (auth required)
+POST /api/social/groups              // Create group (auth required)
+POST /api/social/groups/join/:code  // Join group (auth required)
+GET  /api/social/groups/:id          // Get group details (auth required)
+```
+
+### Resource Endpoints
+
+```javascript
+GET  /api/social/resources           // List resources
+POST /api/social/resources           // Share resource (auth required)
+```

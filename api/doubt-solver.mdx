@@ -1,0 +1,446 @@
+---
+title: Doubt Solver API
+description: Get AI-powered step-by-step solutions to academic questions with optional image support
+---
+
+## Ask a Question
+
+Submit a question to get an AI-powered solution with step-by-step explanations.
+
+<Info>
+Authentication is optional. Authenticated users can save solutions to their history.
+</Info>
+
+```bash POST /api/doubt/ask
+curl -X POST https://api.inspir.uk/api/doubt/ask \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "question_text": "What is the derivative of x^2 + 3x + 5?",
+    "subject": "Mathematics",
+    "source_type": "text"
+  }'
+```
+
+### Request Parameters
+
+<ParamField body="question_text" type="string" required>
+  The question to solve. Must be at least 5 characters long.
+</ParamField>
+
+<ParamField body="subject" type="string">
+  Subject area of the question (e.g., "Mathematics", "Physics", "Chemistry"). Helps the AI provide more contextually relevant answers.
+</ParamField>
+
+<ParamField body="source_type" type="string">
+  Type of question source. Options: `"text"` or `"image"`. Default: `"text"`
+</ParamField>
+
+<ParamField body="image_url" type="string">
+  URL of an uploaded image containing the question (if source_type is "image")
+</ParamField>
+
+<ParamField body="extracted_text" type="string">
+  Text extracted from an image (if applicable)
+</ParamField>
+
+### Response
+
+<ResponseField name="solution" type="string">
+  Complete solution text
+</ResponseField>
+
+<ResponseField name="steps" type="array">
+  Array of step-by-step solution explanations
+  
+  <Expandable title="Step Object">
+    <ResponseField name="stepNumber" type="number">
+      Sequential step number
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Description of the step
+    </ResponseField>
+    
+    <ResponseField name="explanation" type="string">
+      Detailed explanation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="key_concepts" type="array">
+  Array of key concepts covered in the solution
+</ResponseField>
+
+<ResponseField name="difficulty" type="string">
+  Estimated difficulty level (e.g., "Beginner", "Intermediate", "Advanced")
+</ResponseField>
+
+<ResponseField name="saved" type="boolean">
+  Whether the solution was saved to user's history (true for authenticated users)
+</ResponseField>
+
+<ResponseField name="doubtId" type="string">
+  Unique identifier for the saved solution (only present if saved is true)
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Complete database record of the saved solution (only present if saved is true)
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="400 Bad Request">
+```json
+{
+  "error": "Question must be at least 5 characters long"
+}
+```
+</Expandable>
+
+<Expandable title="500 Internal Server Error">
+```json
+{
+  "error": "Failed to solve doubt"
+}
+```
+</Expandable>
+
+---
+
+## Upload and Extract Image
+
+Extract text from an image using Claude Vision API before submitting a question.
+
+```bash POST /api/doubt/upload-image
+curl -X POST https://api.inspir.uk/api/doubt/upload-image \
+  -H "Content-Type: application/json" \
+  -d '{
+    "imageBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA..."
+  }'
+```
+
+### Request Parameters
+
+<ParamField body="imageBase64" type="string" required>
+  Base64-encoded image data (with or without data URI prefix). Maximum size: 10MB.
+</ParamField>
+
+### Response
+
+<ResponseField name="extracted_text" type="string">
+  Text extracted from the image
+</ResponseField>
+
+<ResponseField name="detected_subject" type="string">
+  Auto-detected subject area based on image content
+</ResponseField>
+
+<ResponseField name="confidence" type="number">
+  Confidence score for the extraction (0-1)
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="400 Bad Request">
+```json
+{
+  "error": "Image data is required"
+}
+```
+
+```json
+{
+  "error": "Image size must be less than 10MB"
+}
+```
+</Expandable>
+
+---
+
+## Get Doubt History
+
+Retrieve all saved doubt solutions for the authenticated user.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash GET /api/doubt/history
+curl -X GET "https://api.inspir.uk/api/doubt/history?subject=Mathematics&limit=50&offset=0" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="subject" type="string">
+  Filter by subject. Use `"all"` or omit to get all subjects.
+</ParamField>
+
+<ParamField query="limit" type="number">
+  Number of results to return. Default: 50
+</ParamField>
+
+<ParamField query="offset" type="number">
+  Number of results to skip (for pagination). Default: 0
+</ParamField>
+
+### Response
+
+<ResponseField name="doubts" type="array">
+  Array of saved doubt solutions
+  
+  <Expandable title="Doubt Object">
+    <ResponseField name="id" type="string">
+      Unique identifier
+    </ResponseField>
+    
+    <ResponseField name="question_text" type="string">
+      The original question
+    </ResponseField>
+    
+    <ResponseField name="subject" type="string">
+      Subject area
+    </ResponseField>
+    
+    <ResponseField name="solution_text" type="string">
+      Complete solution
+    </ResponseField>
+    
+    <ResponseField name="solution_steps" type="array">
+      Step-by-step breakdown
+    </ResponseField>
+    
+    <ResponseField name="key_concepts" type="array">
+      Key concepts covered
+    </ResponseField>
+    
+    <ResponseField name="estimated_difficulty" type="string">
+      Difficulty level
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="is_public" type="boolean">
+      Whether the solution is publicly visible
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="limit" type="number">
+  Limit applied to the query
+</ResponseField>
+
+<ResponseField name="offset" type="number">
+  Offset applied to the query
+</ResponseField>
+
+---
+
+## Get Specific Doubt
+
+Retrieve details of a specific doubt solution.
+
+```bash GET /api/doubt/:id
+curl -X GET https://api.inspir.uk/api/doubt/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the doubt
+</ParamField>
+
+### Response
+
+Returns a single doubt object with the same structure as the history endpoint.
+
+### Error Responses
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Doubt not found"
+}
+```
+</Expandable>
+
+---
+
+## Update Doubt
+
+Update properties of a saved doubt solution.
+
+<Warning>
+This endpoint requires authentication. You can only update your own doubts.
+</Warning>
+
+```bash PUT /api/doubt/:id
+curl -X PUT https://api.inspir.uk/api/doubt/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "is_public": true
+  }'
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the doubt
+</ParamField>
+
+### Request Parameters
+
+<ParamField body="is_public" type="boolean">
+  Whether the solution should be publicly visible
+</ParamField>
+
+### Response
+
+Returns the updated doubt object.
+
+---
+
+## Delete Doubt
+
+Delete a saved doubt solution.
+
+<Warning>
+This endpoint requires authentication. You can only delete your own doubts.
+</Warning>
+
+```bash DELETE /api/doubt/:id
+curl -X DELETE https://api.inspir.uk/api/doubt/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the doubt
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "Doubt deleted successfully"
+}
+```
+
+---
+
+## Create Share Link
+
+Generate a shareable link for a doubt solution.
+
+<Warning>
+This endpoint requires authentication. You can only share your own doubts.
+</Warning>
+
+```bash POST /api/doubt/:doubtId/share
+curl -X POST https://api.inspir.uk/api/doubt/123e4567-e89b-12d3-a456-426614174000/share \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="doubtId" type="string" required>
+  The unique identifier of the doubt to share
+</ParamField>
+
+### Response
+
+<ResponseField name="share_token" type="string">
+  Unique token for the shared doubt
+</ResponseField>
+
+<ResponseField name="share_url" type="string">
+  Complete shareable URL
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Share record from database
+</ResponseField>
+
+---
+
+## Get Shared Doubt
+
+Retrieve a publicly shared doubt solution using its share token.
+
+```bash GET /api/doubt/shared/:shareToken
+curl -X GET https://api.inspir.uk/api/doubt/shared/abc123def456
+```
+
+### Path Parameters
+
+<ParamField path="shareToken" type="string" required>
+  The share token for the doubt
+</ParamField>
+
+### Response
+
+Returns the complete doubt object. Also increments the view count for the shared solution.
+
+<ResponseField name="views_count" type="number">
+  Number of times this solution has been viewed
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Shared doubt not found"
+}
+```
+</Expandable>
+
+---
+
+## Get Recent Solutions
+
+Retrieve recently shared public doubt solutions.
+
+```bash GET /api/doubt/recent
+curl -X GET "https://api.inspir.uk/api/doubt/recent?limit=10"
+```
+
+### Query Parameters
+
+<ParamField query="limit" type="number">
+  Number of solutions to return. Default: 10
+</ParamField>
+
+### Response
+
+<ResponseField name="solutions" type="array">
+  Array of public solutions (limited fields for preview)
+  
+  <Expandable title="Solution Preview">
+    <ResponseField name="id" type="string">
+      Doubt ID
+    </ResponseField>
+    
+    <ResponseField name="question_text" type="string">
+      The question
+    </ResponseField>
+    
+    <ResponseField name="subject" type="string">
+      Subject area
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="estimated_difficulty" type="string">
+      Difficulty level
+    </ResponseField>
+  </Expandable>
+</ResponseField>

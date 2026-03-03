@@ -1,0 +1,518 @@
+---
+title: Quiz API
+description: Generate AI-powered quizzes, submit answers for grading, and manage quiz history
+---
+
+## Generate Quiz
+
+<Info>
+Supports both text input and file upload (TXT, DOC, DOCX). Authentication is optional - authenticated users can save quizzes to their history.
+</Info>
+
+```bash POST /api/quiz/generate
+curl -X POST https://api.inspir.uk/api/quiz/generate \
+  -H "Content-Type: multipart/form-data" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "sourceName=Biology Chapter 3" \
+  -F "content=Photosynthesis is the process by which plants convert light energy..."
+```
+
+### Request Parameters
+
+<ParamField body="sourceName" type="string">
+  Name/topic of the quiz source (e.g., "Biology Chapter 3"). Defaults to "Untitled Quiz" if not provided.
+</ParamField>
+
+<ParamField body="content" type="string">
+  Text content to generate quiz from. If not provided, quiz will be generated based on the topic name.
+</ParamField>
+
+<ParamField body="file" type="file">
+  Optional file upload (TXT, DOC, DOCX). Maximum 10MB. File content takes precedence over text content.
+</ParamField>
+
+### Response
+
+<ResponseField name="quizId" type="string">
+  Unique identifier for the saved quiz (only present for authenticated users)
+</ResponseField>
+
+<ResponseField name="sourceName" type="string">
+  Name of the quiz source
+</ResponseField>
+
+<ResponseField name="questions" type="array">
+  Array of generated quiz questions
+  
+  <Expandable title="Question Object">
+    <ResponseField name="question" type="string">
+      The question text
+    </ResponseField>
+    
+    <ResponseField name="options" type="array">
+      Array of answer options (typically 4 options)
+    </ResponseField>
+    
+    <ResponseField name="correctAnswer" type="string">
+      The correct answer from the options
+    </ResponseField>
+    
+    <ResponseField name="explanation" type="string">
+      Explanation of why the answer is correct
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="400 Bad Request">
+```json
+{
+  "error": "Please provide either a topic or content for quiz generation."
+}
+```
+
+```json
+{
+  "error": "Only TXT, DOC, and DOCX files are allowed"
+}
+```
+</Expandable>
+
+<Expandable title="503 Service Unavailable">
+```json
+{
+  "error": "AI is currently busy. Please try again in 30–60 seconds.",
+  "message": "Service overloaded"
+}
+```
+</Expandable>
+
+<Expandable title="504 Gateway Timeout">
+```json
+{
+  "error": "Quiz generation timed out",
+  "message": "Connection timeout"
+}
+```
+</Expandable>
+
+---
+
+## Submit Quiz
+
+Submit quiz answers for AI-powered grading and detailed feedback.
+
+```bash POST /api/quiz/submit
+curl -X POST https://api.inspir.uk/api/quiz/submit \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "quizId": "123e4567-e89b-12d3-a456-426614174000",
+    "questions": [
+      {
+        "question": "What is photosynthesis?",
+        "options": ["..."],
+        "correctAnswer": "The process by which plants..."
+      }
+    ],
+    "answers": ["The process by which plants..."]
+  }'
+```
+
+### Request Parameters
+
+<ParamField body="quizId" type="string">
+  ID of the quiz being submitted (required for saving results to history)
+</ParamField>
+
+<ParamField body="questions" type="array" required>
+  Array of quiz questions (must match the generated quiz structure)
+</ParamField>
+
+<ParamField body="answers" type="array" required>
+  Array of user's answers corresponding to each question. Length must match questions array.
+</ParamField>
+
+### Response
+
+<ResponseField name="score" type="number">
+  Number of correct answers
+</ResponseField>
+
+<ResponseField name="totalQuestions" type="number">
+  Total number of questions in the quiz
+</ResponseField>
+
+<ResponseField name="percentage" type="number">
+  Score as a percentage (0-100)
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Detailed results for each question
+  
+  <Expandable title="Result Object">
+    <ResponseField name="question" type="string">
+      The question text
+    </ResponseField>
+    
+    <ResponseField name="userAnswer" type="string">
+      The answer provided by the user
+    </ResponseField>
+    
+    <ResponseField name="correctAnswer" type="string">
+      The correct answer
+    </ResponseField>
+    
+    <ResponseField name="isCorrect" type="boolean">
+      Whether the user's answer was correct
+    </ResponseField>
+    
+    <ResponseField name="explanation" type="string">
+      Explanation of the correct answer
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="400 Bad Request">
+```json
+{
+  "error": "Invalid submission data"
+}
+```
+Returned when questions and answers arrays don't match in length.
+</Expandable>
+
+---
+
+## Get Quiz History
+
+Retrieve all quiz attempts and results for the authenticated user.
+
+<Warning>
+This endpoint requires authentication.
+</Warning>
+
+```bash GET /api/quiz/history
+curl -X GET https://api.inspir.uk/api/quiz/history \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Response
+
+Returns an array of quiz result objects:
+
+<ResponseField name="id" type="string">
+  Unique identifier for the quiz result
+</ResponseField>
+
+<ResponseField name="quiz_id" type="string">
+  ID of the associated quiz
+</ResponseField>
+
+<ResponseField name="score" type="number">
+  Number of correct answers
+</ResponseField>
+
+<ResponseField name="total_questions" type="number">
+  Total number of questions
+</ResponseField>
+
+<ResponseField name="percentage" type="number">
+  Score as a percentage
+</ResponseField>
+
+<ResponseField name="submitted_at" type="string">
+  ISO 8601 timestamp of submission
+</ResponseField>
+
+<ResponseField name="quizzes" type="object">
+  Associated quiz information
+  
+  <Expandable title="Quiz Info">
+    <ResponseField name="id" type="string">
+      Quiz ID
+    </ResponseField>
+    
+    <ResponseField name="source_name" type="string">
+      Name of the quiz source
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp of quiz creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Get Quiz by ID
+
+Retrieve a specific quiz by its ID.
+
+```bash GET /api/quiz/:id
+curl -X GET https://api.inspir.uk/api/quiz/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the quiz
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Quiz ID
+</ResponseField>
+
+<ResponseField name="user_id" type="string">
+  ID of the user who created the quiz
+</ResponseField>
+
+<ResponseField name="source_name" type="string">
+  Name of the quiz source
+</ResponseField>
+
+<ResponseField name="questions" type="array">
+  Array of quiz questions (same structure as generate endpoint)
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp of quiz creation
+</ResponseField>
+
+<ResponseField name="created_by_username" type="string">
+  Username of the quiz creator
+</ResponseField>
+
+### Error Responses
+
+<Expandable title="403 Forbidden">
+```json
+{
+  "error": "Access denied"
+}
+```
+Returned when attempting to access another user's quiz.
+</Expandable>
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Quiz not found"
+}
+```
+</Expandable>
+
+---
+
+## Share Quiz
+
+Generate a shareable link for a quiz. Others can take the quiz using this link.
+
+<Warning>
+This endpoint requires authentication. You can only share your own quizzes.
+</Warning>
+
+```bash POST /api/quiz/:quizId/share
+curl -X POST https://api.inspir.uk/api/quiz/123e4567-e89b-12d3-a456-426614174000/share \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="quizId" type="string" required>
+  The unique identifier of the quiz to share
+</ParamField>
+
+### Response
+
+<ResponseField name="shareToken" type="string">
+  Unique token for the shared quiz
+</ResponseField>
+
+<ResponseField name="shareUrl" type="string">
+  Complete shareable URL
+</ResponseField>
+
+---
+
+## Get Shared Quiz
+
+Retrieve a quiz using its share token (public endpoint).
+
+```bash GET /api/quiz/shared/:shareToken
+curl -X GET https://api.inspir.uk/api/quiz/shared/abc123def456
+```
+
+### Path Parameters
+
+<ParamField path="shareToken" type="string" required>
+  The share token for the quiz
+</ParamField>
+
+### Response
+
+<ResponseField name="quizId" type="string">
+  Quiz ID
+</ResponseField>
+
+<ResponseField name="sourceName" type="string">
+  Name of the quiz source
+</ResponseField>
+
+<ResponseField name="questions" type="array">
+  Array of quiz questions
+</ResponseField>
+
+<ResponseField name="createdBy" type="string">
+  Username of the quiz creator
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp
+</ResponseField>
+
+---
+
+## Submit Shared Quiz
+
+Submit answers for a shared quiz attempt.
+
+```bash POST /api/quiz/shared/:shareToken/submit
+curl -X POST https://api.inspir.uk/api/quiz/shared/abc123def456/submit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questions": [...],
+    "answers": [...],
+    "attemptName": "John Doe",
+    "isGuest": true
+  }'
+```
+
+### Path Parameters
+
+<ParamField path="shareToken" type="string" required>
+  The share token for the quiz
+</ParamField>
+
+### Request Parameters
+
+<ParamField body="questions" type="array" required>
+  Array of quiz questions
+</ParamField>
+
+<ParamField body="answers" type="array" required>
+  Array of user's answers
+</ParamField>
+
+<ParamField body="attemptName" type="string" required>
+  Name of the person taking the quiz (max 100 characters)
+</ParamField>
+
+<ParamField body="isGuest" type="boolean">
+  Whether this is a guest attempt (default: false)
+</ParamField>
+
+### Response
+
+Same structure as the regular submit quiz endpoint (score, results, etc.)
+
+---
+
+## Get Quiz Attempts
+
+View all attempts and statistics for a shared quiz (quiz creator only).
+
+<Warning>
+This endpoint requires authentication and quiz ownership.
+</Warning>
+
+```bash GET /api/quiz/:quizId/attempts
+curl -X GET https://api.inspir.uk/api/quiz/123e4567-e89b-12d3-a456-426614174000/attempts \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Response
+
+<ResponseField name="quizInfo" type="object">
+  Basic quiz information
+  
+  <Expandable title="Quiz Info">
+    <ResponseField name="id" type="string">
+      Quiz ID
+    </ResponseField>
+    
+    <ResponseField name="sourceName" type="string">
+      Quiz source name
+    </ResponseField>
+    
+    <ResponseField name="isShared" type="boolean">
+      Whether the quiz is currently shared
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="stats" type="object">
+  Overall statistics for all attempts
+  
+  <Expandable title="Statistics">
+    <ResponseField name="totalAttempts" type="number">
+      Total number of attempts
+    </ResponseField>
+    
+    <ResponseField name="averageScore" type="number">
+      Average score across all attempts
+    </ResponseField>
+    
+    <ResponseField name="averagePercentage" type="number">
+      Average percentage across all attempts
+    </ResponseField>
+    
+    <ResponseField name="highestScore" type="number">
+      Highest score achieved
+    </ResponseField>
+    
+    <ResponseField name="lowestScore" type="number">
+      Lowest score achieved
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="attempts" type="array">
+  Array of individual quiz attempts
+  
+  <Expandable title="Attempt Object">
+    <ResponseField name="id" type="string">
+      Attempt ID
+    </ResponseField>
+    
+    <ResponseField name="attemptName" type="string">
+      Name of the person who took the quiz
+    </ResponseField>
+    
+    <ResponseField name="isGuest" type="boolean">
+      Whether this was a guest attempt
+    </ResponseField>
+    
+    <ResponseField name="score" type="number">
+      Score achieved
+    </ResponseField>
+    
+    <ResponseField name="percentage" type="number">
+      Percentage score
+    </ResponseField>
+    
+    <ResponseField name="completedAt" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="answers" type="array">
+      Detailed answer results
+    </ResponseField>
+  </Expandable>
+</ResponseField>

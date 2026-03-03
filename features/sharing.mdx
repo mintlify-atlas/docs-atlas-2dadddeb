@@ -1,0 +1,515 @@
+---
+title: Sharing Capabilities
+description: Share quizzes, doubt solutions, and study materials via public links with SEO optimization
+---
+
+inspir makes it easy to share your study materials, quiz results, and doubt solutions with others through secure, public links.
+
+## Share Quiz Links
+
+Create shareable links for your quizzes so others can take them and compare results.
+
+### How Quiz Sharing Works
+
+1. **Create a quiz** from your study materials
+2. **Generate a share link** with a unique token
+3. **Share the link** with classmates, study groups, or on social media
+4. **Track attempts** and view statistics
+
+### Database Schema
+
+```sql
+CREATE TABLE quizzes (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  source_name TEXT NOT NULL,
+  questions JSONB NOT NULL,
+  
+  -- Sharing fields
+  share_token TEXT UNIQUE,
+  is_shared BOOLEAN DEFAULT false,
+  created_by_username TEXT,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Generating Share Links
+
+```javascript
+// Share a quiz
+POST /api/quiz/:quizId/share
+
+// Response:
+{
+  success: true,
+  quiz: {
+    id: "quiz-uuid",
+    share_token: "abc123-unique-token",
+    is_shared: true,
+    share_url: "https://inspir.app/quiz/shared/abc123-unique-token"
+  }
+}
+```
+
+<Note>
+The share token is a UUID that's unique and difficult to guess, ensuring only people with the link can access it.
+</Note>
+
+### Accessing Shared Quizzes
+
+```javascript
+// Anyone can view a shared quiz (no auth required)
+GET /api/quiz/shared/:shareToken
+
+// Response includes:
+{
+  quiz: {
+    id: "quiz-uuid",
+    source_name: "Chapter 3: Biology",
+    questions: [ /* quiz questions */ ],
+    created_by_username: "studymaster123",
+    created_at: "2026-03-01T10:00:00Z"
+  }
+}
+```
+
+### Taking Shared Quizzes
+
+Both authenticated users and guests can take shared quizzes:
+
+```javascript
+// Submit answers to a shared quiz
+POST /api/quiz/shared/:shareToken/submit
+{
+  attempt_name: "John Doe",  // Display name (required for guests)
+  answers: [
+    { questionIndex: 0, selectedOption: 2 },
+    { questionIndex: 1, selectedOption: 1 },
+    // ...
+  ]
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Authenticated Users" icon="user">
+    Auto-filled name, results saved to history
+  </Card>
+  <Card title="Guest Users" icon="user-secret">
+    Provide display name, results are anonymous
+  </Card>
+</CardGroup>
+
+### Quiz Attempt Tracking
+
+```sql
+CREATE TABLE quiz_attempts (
+  id UUID PRIMARY KEY,
+  quiz_id UUID REFERENCES quizzes(id),
+  user_id UUID REFERENCES auth.users(id),  -- NULL for guests
+  attempt_name TEXT NOT NULL,
+  is_guest BOOLEAN DEFAULT false,
+  score INTEGER NOT NULL,
+  total_questions INTEGER NOT NULL,
+  percentage INTEGER NOT NULL,
+  answers JSONB NOT NULL,
+  completed_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Benefits for Quiz Creators:**
+- See who took your quiz
+- View aggregate statistics
+- Compare performance across all attempts
+- Identify difficult questions
+
+```javascript
+// View all attempts on your shared quiz
+GET /api/quiz/:quizId/attempts
+
+{
+  stats: {
+    total_attempts: 42,
+    average_score: 7.8,
+    highest_score: 10,
+    lowest_score: 3,
+    average_percentage: 78.3
+  },
+  attempts: [ /* individual attempt details */ ]
+}
+```
+
+<Tip>
+Only the quiz creator can view attempt statistics. Individual users only see their own scores.
+</Tip>
+
+## Share Doubt Solutions
+
+Share your solved homework problems and doubt solutions with others via public links.
+
+### Doubt Sharing Schema
+
+```sql
+CREATE TABLE doubt_questions (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  question_text TEXT NOT NULL,
+  subject VARCHAR(50),
+  source_type VARCHAR(20),  -- 'text' or 'image'
+  
+  -- Solution data
+  solution_text TEXT,
+  solution_steps JSONB,
+  key_concepts TEXT[],
+  
+  -- Sharing
+  is_public BOOLEAN DEFAULT false,
+  views_count INTEGER DEFAULT 0,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE doubt_shares (
+  id UUID PRIMARY KEY,
+  doubt_id UUID REFERENCES doubt_questions(id),
+  share_token VARCHAR(50) UNIQUE NOT NULL,
+  views_count INTEGER DEFAULT 0,
+  expires_at TIMESTAMPTZ,  -- Optional expiration
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Creating Share Links
+
+```javascript
+// Generate a shareable link for a doubt solution
+POST /api/doubt/:doubtId/share
+
+// Response:
+{
+  success: true,
+  share: {
+    id: "share-uuid",
+    share_token: "aBcDeF123456",
+    share_url: "https://inspir.app/doubt/shared/aBcDeF123456",
+    expires_at: null  // or timestamp if expiring
+  }
+}
+```
+
+### Accessing Shared Doubts
+
+```javascript
+// Anyone can view shared doubts (no auth required)
+GET /api/doubt/shared/:shareToken
+
+{
+  doubt: {
+    question_text: "Solve: 2x + 5 = 15",
+    subject: "Mathematics",
+    solution_steps: [
+      { step: 1, text: "Subtract 5 from both sides", equation: "2x = 10" },
+      { step: 2, text: "Divide both sides by 2", equation: "x = 5" }
+    ],
+    solution_text: "The solution is x = 5",
+    key_concepts: ["linear equations", "algebra"],
+    views_count: 127
+  }
+}
+```
+
+<Note>
+View counts are automatically incremented each time someone accesses the shared link.
+</Note>
+
+### Recent Public Solutions
+
+Users can browse recently shared public solutions:
+
+```javascript
+GET /api/doubt/recent
+
+{
+  solutions: [
+    {
+      id: "doubt-uuid",
+      question_text: "...",
+      subject: "Physics",
+      key_concepts: ["kinematics", "motion"],
+      views_count: 45,
+      created_at: "2026-03-02T14:30:00Z"
+    },
+    // ...
+  ]
+}
+```
+
+## Public vs Private Content
+
+Understand the difference between public and private sharing.
+
+### Private Sharing (Default)
+
+<CardGroup cols={2}>
+  <Card title="Share Token Required" icon="key">
+    Only accessible via the unique share link
+  </Card>
+  <Card title="Not Indexed" icon="eye-slash">
+    Won't appear in public lists or search results
+  </Card>
+  <Card title="Controlled Access" icon="lock">
+    You control who gets the link
+  </Card>
+  <Card title="Revocable" icon="ban">
+    Can be unshared at any time
+  </Card>
+</CardGroup>
+
+### Public Sharing
+
+For doubt solutions, you can optionally mark content as public:
+
+```javascript
+// Mark doubt as public
+PUT /api/doubt/:id
+{
+  is_public: true
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Public Discovery" icon="globe">
+    Appears in "Recent Solutions" feed
+  </Card>
+  <Card title="Search Indexing" icon="magnifying-glass">
+    Can be found via search engines (if SEO enabled)
+  </Card>
+  <Card title="Community Sharing" icon="users">
+    Helps other students learn
+  </Card>
+  <Card title="View Tracking" icon="chart-line">
+    See how many people viewed your solution
+  </Card>
+</CardGroup>
+
+### Privacy Controls
+
+```sql
+-- Row Level Security for doubts
+CREATE POLICY "Users can view their own doubts"
+  ON doubt_questions FOR SELECT
+  USING (auth.uid() = user_id OR user_id IS NULL);
+
+CREATE POLICY "Public doubts are viewable by all"
+  ON doubt_questions FOR SELECT
+  USING (is_public = true);
+
+CREATE POLICY "Anyone can view shares"
+  ON doubt_shares FOR SELECT
+  USING (true);
+```
+
+## SEO Prerendering for Shared Content
+
+inspir uses server-side rendering (SSR) to ensure shared content is properly indexed by search engines and displays rich previews on social media.
+
+### Open Graph Meta Tags
+
+When sharing links on social media, inspir automatically generates rich previews:
+
+```html
+<!-- Example for shared quiz -->
+<meta property="og:title" content="Quiz: Chapter 3 - Biology" />
+<meta property="og:description" content="Take this 10-question quiz created by studymaster123" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://inspir.app/quiz/shared/abc123" />
+<meta property="og:image" content="https://inspir.app/og-image-quiz.png" />
+
+<!-- Example for shared doubt solution -->
+<meta property="og:title" content="Solution: Solve 2x + 5 = 15" />
+<meta property="og:description" content="Step-by-step solution for linear equations" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://inspir.app/doubt/shared/xyz789" />
+```
+
+### Twitter Card Support
+
+```html
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Quiz: Chapter 3 - Biology" />
+<meta name="twitter:description" content="Take this 10-question quiz..." />
+<meta name="twitter:image" content="https://inspir.app/og-image-quiz.png" />
+```
+
+### SEO Benefits
+
+<CardGroup cols={2}>
+  <Card title="Rich Previews" icon="image">
+    Beautiful link previews on social media
+  </Card>
+  <Card title="Search Indexing" icon="search">
+    Public content indexed by Google
+  </Card>
+  <Card title="Social Sharing" icon="share-nodes">
+    Optimized for Twitter, Facebook, Discord
+  </Card>
+  <Card title="Fast Loading" icon="bolt">
+    Server-side rendering for instant display
+  </Card>
+</CardGroup>
+
+<Note>
+Only content marked as public or explicitly shared via link is indexed. Your private study materials remain private.
+</Note>
+
+## Share Other Content Types
+
+While quizzes and doubts are the primary shareable content, other materials can also be shared:
+
+### Flashcard Decks
+
+```sql
+ALTER TABLE flashcard_decks ADD COLUMN is_shared BOOLEAN DEFAULT FALSE;
+ALTER TABLE flashcard_decks ADD COLUMN share_token UUID;
+```
+
+### Study Guides
+
+```sql
+ALTER TABLE study_guides ADD COLUMN is_shared BOOLEAN DEFAULT FALSE;
+ALTER TABLE study_guides ADD COLUMN share_token UUID;
+```
+
+### Mind Maps
+
+```sql
+ALTER TABLE mind_maps ADD COLUMN is_shared BOOLEAN DEFAULT FALSE;
+ALTER TABLE mind_maps ADD COLUMN share_token UUID;
+```
+
+<Tip>
+Sharing functionality follows the same pattern across all content types: generate a unique token, enable public access, and track views/usage.
+</Tip>
+
+## Security Considerations
+
+### Share Token Generation
+
+```javascript
+// Tokens are UUIDs, which are cryptographically random
+function generateShareToken() {
+  return uuid_generate_v4();  // e.g., "550e8400-e29b-41d4-a716-446655440000"
+}
+
+// For doubts, a shorter alphanumeric code is used
+function generateDoubtShareToken() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 12; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;  // e.g., "aBcDeF123456"
+}
+```
+
+### Access Control
+
+- **No authentication required** to view shared content
+- **Token required** to access (can't be guessed)
+- **Creator retains control** (can revoke sharing)
+- **Tracking enabled** (view counts, attempt statistics)
+
+### Revoking Access
+
+```javascript
+// Unshare a quiz
+DELETE /api/quiz/:quizId/share
+// or
+PUT /api/quiz/:quizId
+{
+  is_shared: false,
+  share_token: null
+}
+```
+
+<Warning>
+Revoking sharing will break existing links. Users who have the link will no longer be able to access the content.
+</Warning>
+
+## Analytics for Shared Content
+
+Track how your shared content is being used:
+
+### View Tracking
+
+```sql
+-- Increment view count when accessed
+UPDATE doubt_shares 
+SET views_count = views_count + 1 
+WHERE share_token = $1;
+
+UPDATE doubt_questions 
+SET views_count = views_count + 1 
+WHERE id = $1;
+```
+
+### Attempt Statistics
+
+For quizzes, you can see detailed attempt data:
+
+```javascript
+GET /api/quiz/:quizId/attempts
+
+{
+  total_attempts: 127,
+  unique_users: 89,
+  guest_attempts: 38,
+  average_score: 7.6,
+  score_distribution: {
+    "0-20%": 5,
+    "21-40%": 12,
+    "41-60%": 28,
+    "61-80%": 45,
+    "81-100%": 37
+  },
+  attempts_over_time: [ /* time series data */ ]
+}
+```
+
+## Integration with Study Groups
+
+Shared links work seamlessly with study groups:
+
+```javascript
+// Share a resource in a study group
+POST /api/social/resources
+{
+  title: "Biology Quiz - Chapter 3",
+  url: "https://inspir.app/quiz/shared/abc123",
+  description: "Practice quiz I created",
+  tags: ["biology", "quiz"],
+  group_id: "group-uuid"
+}
+```
+
+## Best Practices
+
+<Card title="Choose Meaningful Names" icon="tag">
+  Give your quizzes and content descriptive names so others know what to expect
+</Card>
+
+<Card title="Set Appropriate Privacy" icon="shield">
+  Use private sharing for class assignments, public for general study materials
+</Card>
+
+<Card title="Monitor Usage" icon="chart-bar">
+  Check view counts and attempt statistics to see if your content is helpful
+</Card>
+
+<Card title="Give Attribution" icon="quote">
+  When sharing content based on external sources, mention the original source
+</Card>
+
+<Card title="Respect Academic Integrity" icon="scale-balanced">
+  Don't share solutions to graded assignments or exam questions
+</Card>
