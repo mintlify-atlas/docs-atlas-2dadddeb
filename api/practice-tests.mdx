@@ -1,0 +1,346 @@
+---
+title: Practice Tests API
+description: Create and manage practice tests with AI-generated questions
+---
+
+## Overview
+
+The Practice Tests API allows users to create comprehensive practice tests from study materials. Unlike regular quizzes, practice tests support question banks, custom test creation, and detailed performance tracking.
+
+## Endpoints
+
+### Create Question Bank
+
+<CodeGroup>
+```bash POST /api/practice-tests/banks
+curl -X POST https://api.inspir.uk/api/practice-tests/banks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "name": "Biology Chapter 5",
+    "description": "Photosynthesis and cellular respiration",
+    "topic": "Biology"
+  }'
+```
+</CodeGroup>
+
+Create a question bank to organize practice questions.
+
+**Authentication:** Required
+
+#### Request Body
+
+<ParamField path="name" type="string" required>
+  Name of the question bank
+</ParamField>
+
+<ParamField path="description" type="string">
+  Description of the question bank content
+</ParamField>
+
+<ParamField path="topic" type="string">
+  Subject area
+</ParamField>
+
+### Generate Practice Questions
+
+<CodeGroup>
+```bash POST /api/practice-tests/generate
+curl -X POST https://api.inspir.uk/api/practice-tests/generate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "content": "Study material text...",
+    "questionCount": 20,
+    "difficultyMix": "balanced"
+  }'
+```
+
+```bash With File Upload
+curl -X POST https://api.inspir.uk/api/practice-tests/generate \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@notes.pdf" \
+  -F "questionCount=20" \
+  -F "difficultyMix=balanced"
+```
+</CodeGroup>
+
+Generate practice questions from content or uploaded file.
+
+**Authentication:** Optional (guests get questions without saving)
+
+#### Request Body
+
+<ParamField path="content" type="string">
+  Text content to generate questions from (required if no file)
+</ParamField>
+
+<ParamField path="file" type="file">
+  PDF, DOCX, or TXT file (max 10MB, required if no content)
+</ParamField>
+
+<ParamField path="questionCount" type="number" default={15}>
+  Number of questions to generate (5-50)
+</ParamField>
+
+<ParamField path="difficultyMix" type="string" default="balanced">
+  Difficulty distribution: `easy`, `balanced`, `hard`, or `mixed`
+</ParamField>
+
+<ParamField path="questionTypes" type="array">
+  Question types to include: `multiple-choice`, `true-false`, `short-answer`, `fill-blank`
+</ParamField>
+
+<ParamField path="bankId" type="string">
+  Optional question bank ID to save questions to
+</ParamField>
+
+#### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="questions" type="array">
+  Generated questions
+  
+  <Expandable title="question object">
+    <ResponseField name="id" type="string">
+      Question ID
+    </ResponseField>
+    
+    <ResponseField name="questionText" type="string">
+      The question
+    </ResponseField>
+    
+    <ResponseField name="questionType" type="string">
+      Type: multiple-choice, true-false, short-answer, or fill-blank
+    </ResponseField>
+    
+    <ResponseField name="options" type="array">
+      Answer options (for multiple-choice and true-false)
+    </ResponseField>
+    
+    <ResponseField name="correctAnswer" type="string">
+      Correct answer
+    </ResponseField>
+    
+    <ResponseField name="explanation" type="string">
+      Explanation of the correct answer
+    </ResponseField>
+    
+    <ResponseField name="difficulty" type="string">
+      Difficulty: easy, medium, or hard
+    </ResponseField>
+    
+    <ResponseField name="topic" type="string">
+      Specific topic this question covers
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="saved" type="boolean">
+  Whether questions were saved (true for authenticated users)
+</ResponseField>
+
+### Create Practice Test
+
+<CodeGroup>
+```bash POST /api/practice-tests/tests
+curl -X POST https://api.inspir.uk/api/practice-tests/tests \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "Biology Midterm Practice",
+    "questionIds": ["q1", "q2", "q3"],
+    "timeLimit": 60,
+    "passingScore": 70
+  }'
+```
+</CodeGroup>
+
+Create a custom practice test from question bank.
+
+**Authentication:** Required
+
+#### Request Body
+
+<ParamField path="title" type="string" required>
+  Test title
+</ParamField>
+
+<ParamField path="questionIds" type="array" required>
+  Array of question IDs to include in the test
+</ParamField>
+
+<ParamField path="timeLimit" type="number">
+  Time limit in minutes (optional)
+</ParamField>
+
+<ParamField path="passingScore" type="number">
+  Passing score percentage (0-100)
+</ParamField>
+
+<ParamField path="shuffleQuestions" type="boolean" default={true}>
+  Whether to randomize question order
+</ParamField>
+
+<ParamField path="showFeedback" type="boolean" default={true}>
+  Show immediate feedback after each question
+</ParamField>
+
+### Submit Test Attempt
+
+<CodeGroup>
+```bash POST /api/practice-tests/tests/:id/submit
+curl -X POST https://api.inspir.uk/api/practice-tests/tests/test123/submit \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "answers": [
+      {"questionId": "q1", "answer": "A"},
+      {"questionId": "q2", "answer": "True"}
+    ],
+    "timeSpent": 45
+  }'
+```
+</CodeGroup>
+
+Submit answers for a practice test.
+
+**Authentication:** Required
+
+#### Request Body
+
+<ParamField path="answers" type="array" required>
+  Array of answer objects
+  
+  <Expandable title="answer object">
+    <ParamField path="questionId" type="string" required>
+      Question ID
+    </ParamField>
+    
+    <ParamField path="answer" type="string" required>
+      User's answer
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="timeSpent" type="number">
+  Total time spent in minutes
+</ParamField>
+
+#### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the submission was successful
+</ResponseField>
+
+<ResponseField name="results" type="object">
+  Test results
+  
+  <Expandable title="properties">
+    <ResponseField name="score" type="number">
+      Score percentage (0-100)
+    </ResponseField>
+    
+    <ResponseField name="correctCount" type="number">
+      Number of correct answers
+    </ResponseField>
+    
+    <ResponseField name="totalQuestions" type="number">
+      Total number of questions
+    </ResponseField>
+    
+    <ResponseField name="passed" type="boolean">
+      Whether the user passed (based on passingScore)
+    </ResponseField>
+    
+    <ResponseField name="timeSpent" type="number">
+      Time spent in minutes
+    </ResponseField>
+    
+    <ResponseField name="questionResults" type="array">
+      Detailed results per question
+      
+      <Expandable title="question result">
+        <ResponseField name="questionId" type="string">
+          Question ID
+        </ResponseField>
+        
+        <ResponseField name="correct" type="boolean">
+          Whether answer was correct
+        </ResponseField>
+        
+        <ResponseField name="userAnswer" type="string">
+          User's answer
+        </ResponseField>
+        
+        <ResponseField name="correctAnswer" type="string">
+          Correct answer
+        </ResponseField>
+        
+        <ResponseField name="explanation" type="string">
+          Explanation of correct answer
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="feedback" type="string">
+      AI-generated personalized feedback
+    </ResponseField>
+    
+    <ResponseField name="weakTopics" type="array">
+      Topics where user needs improvement
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Get Practice Tests
+
+<CodeGroup>
+```bash GET /api/practice-tests/tests
+curl -X GET https://api.inspir.uk/api/practice-tests/tests \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get user's practice tests.
+
+**Authentication:** Required
+
+### Get Practice Test by ID
+
+<CodeGroup>
+```bash GET /api/practice-tests/tests/:id
+curl -X GET https://api.inspir.uk/api/practice-tests/tests/test123
+```
+</CodeGroup>
+
+Get a specific practice test.
+
+**Authentication:** Optional (public tests only)
+
+## Error Responses
+
+- `400` - Invalid request (missing fields, invalid file type)
+- `401` - Authentication required
+- `404` - Test or question not found
+- `413` - File too large (max 10MB)
+- `500` - AI generation failed
+
+## Supported File Types
+
+- PDF (`.pdf`)
+- Word Documents (`.docx`)
+- Text Files (`.txt`)
+
+Maximum file size: **10 MB**
+
+<Info>
+Practice tests support advanced features like time limits, passing scores, and detailed analytics to help students prepare for exams effectively.
+</Info>
+
+<Tip>
+Use the `difficultyMix` parameter to create tests that match your exam difficulty. Start with "balanced" and adjust based on your performance.
+</Tip>

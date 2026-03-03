@@ -1,0 +1,180 @@
+---
+title: Concept Maps API
+description: Generate and manage AI-powered concept maps
+---
+
+## Overview
+
+The Concept Maps API creates visual concept maps showing relationships between ideas. Unlike mind maps (which are hierarchical), concept maps show interconnected concepts with labeled relationships.
+
+## Endpoints
+
+### Generate Concept Map
+
+<CodeGroup>
+```bash POST /api/conceptmap/generate
+curl -X POST https://api.inspir.uk/api/conceptmap/generate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "Ecosystem Relationships",
+    "content": "An ecosystem consists of living organisms...",
+    "topic": "Ecology"
+  }'
+```
+</CodeGroup>
+
+Generate a concept map showing relationships between concepts.
+
+**Authentication:** Optional (guests get concept map without saving)
+
+#### Request Body
+
+<ParamField path="title" type="string" required>
+  Title of the concept map
+</ParamField>
+
+<ParamField path="content" type="string" required>
+  Text content to analyze for concepts and relationships
+</ParamField>
+
+<ParamField path="topic" type="string">
+  Subject or topic
+</ParamField>
+
+#### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="conceptMap" type="object">
+  Generated concept map structure
+  
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      Concept map ID (null for guests)
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Concept map title
+    </ResponseField>
+    
+    <ResponseField name="concepts" type="array">
+      List of key concepts (strings)
+    </ResponseField>
+    
+    <ResponseField name="relationships" type="array">
+      Relationships between concepts
+      
+      <Expandable title="relationship object">
+        <ResponseField name="from" type="string">
+          Source concept
+        </ResponseField>
+        
+        <ResponseField name="to" type="string">
+          Target concept
+        </ResponseField>
+        
+        <ResponseField name="relationship" type="string">
+          Description of how concepts are related (e.g., "is part of", "causes", "requires")
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="topic" type="string">
+      Subject area
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="saved" type="boolean">
+  Whether the concept map was saved
+</ResponseField>
+
+### Get Concept Maps
+
+<CodeGroup>
+```bash GET /api/conceptmap/
+curl -X GET https://api.inspir.uk/api/conceptmap/ \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get user's saved concept maps.
+
+**Authentication:** Required
+
+#### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="conceptMaps" type="array">
+  Array of concept maps
+</ResponseField>
+
+### Get Concept Map by ID
+
+<CodeGroup>
+```bash GET /api/conceptmap/:id
+curl -X GET https://api.inspir.uk/api/conceptmap/abc123
+```
+</CodeGroup>
+
+Get a specific concept map.
+
+**Authentication:** Optional
+
+### Update Concept Map
+
+<CodeGroup>
+```bash PUT /api/conceptmap/:id
+curl -X PUT https://api.inspir.uk/api/conceptmap/abc123 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "Updated Title",
+    "concepts": [...],
+    "relationships": [...]
+  }'
+```
+</CodeGroup>
+
+Update a concept map.
+
+**Authentication:** Required
+
+### Delete Concept Map
+
+<CodeGroup>
+```bash DELETE /api/conceptmap/:id
+curl -X DELETE https://api.inspir.uk/api/conceptmap/abc123 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Delete a concept map.
+
+**Authentication:** Required
+
+## Error Responses
+
+- `400` - Missing required fields
+- `401` - Authentication required
+- `404` - Concept map not found
+- `500` - AI generation failed
+
+## Concept Map vs Mind Map
+
+| Feature | Concept Map | Mind Map |
+|---------|-------------|----------|
+| Structure | Network (interconnected) | Hierarchical (tree-like) |
+| Relationships | Labeled connections | Parent-child only |
+| Best for | Understanding complex systems | Brainstorming, categorization |
+| Example use | Ecosystem relationships | Study topic breakdown |
+
+<Info>
+Concept maps are particularly useful for subjects with complex interrelationships like biology, chemistry, and systems thinking.
+</Info>

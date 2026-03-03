@@ -82,6 +82,10 @@
               "api/flashcards",
               "api/study-guides",
               "api/summaries",
+              "api/math-solver",
+              "api/mind-maps",
+              "api/concept-maps",
+              "api/practice-tests",
               "api/streaks",
               "api/forum"
             ]

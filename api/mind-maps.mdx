@@ -1,0 +1,173 @@
+---
+title: Mind Maps API
+description: Generate and manage AI-powered mind maps
+---
+
+## Overview
+
+The Mind Maps API creates visual mind maps from study content using AI. Mind maps help organize information hierarchically with a central concept and branching topics.
+
+## Endpoints
+
+### Generate Mind Map
+
+<CodeGroup>
+```bash POST /api/mindmap/generate
+curl -X POST https://api.inspir.uk/api/mindmap/generate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "Photosynthesis",
+    "content": "Photosynthesis is the process by which plants...",
+    "topic": "Biology"
+  }'
+```
+</CodeGroup>
+
+Generate a mind map from content.
+
+**Authentication:** Optional (guests get mind map without saving)
+
+#### Request Body
+
+<ParamField path="title" type="string" required>
+  Title of the mind map
+</ParamField>
+
+<ParamField path="content" type="string" required>
+  Text content to generate mind map from
+</ParamField>
+
+<ParamField path="topic" type="string">
+  Subject or topic (e.g., "Biology", "History")
+</ParamField>
+
+#### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="mindMap" type="object">
+  Generated mind map structure
+  
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      Mind map ID (null for guests)
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Mind map title
+    </ResponseField>
+    
+    <ResponseField name="centralConcept" type="string">
+      Central/main concept
+    </ResponseField>
+    
+    <ResponseField name="branches" type="array">
+      Main branches from central concept
+      
+      <Expandable title="branch object">
+        <ResponseField name="label" type="string">
+          Branch topic
+        </ResponseField>
+        
+        <ResponseField name="subtopics" type="array">
+          Sub-topics under this branch (strings)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="topic" type="string">
+      Subject area
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="saved" type="boolean">
+  Whether the mind map was saved (true for authenticated users)
+</ResponseField>
+
+### Get Mind Maps
+
+<CodeGroup>
+```bash GET /api/mindmap/
+curl -X GET https://api.inspir.uk/api/mindmap/ \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get user's saved mind maps.
+
+**Authentication:** Required
+
+#### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="mindMaps" type="array">
+  Array of mind maps (same structure as generate response)
+</ResponseField>
+
+### Get Mind Map by ID
+
+<CodeGroup>
+```bash GET /api/mindmap/:id
+curl -X GET https://api.inspir.uk/api/mindmap/abc123 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get a specific mind map.
+
+**Authentication:** Optional
+
+#### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Mind map ID
+</ParamField>
+
+### Update Mind Map
+
+<CodeGroup>
+```bash PUT /api/mindmap/:id
+curl -X PUT https://api.inspir.uk/api/mindmap/abc123 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "Updated Title",
+    "branches": [...]
+  }'
+```
+</CodeGroup>
+
+Update a mind map.
+
+**Authentication:** Required
+
+### Delete Mind Map
+
+<CodeGroup>
+```bash DELETE /api/mindmap/:id
+curl -X DELETE https://api.inspir.uk/api/mindmap/abc123 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Delete a mind map.
+
+**Authentication:** Required
+
+## Error Responses
+
+- `400` - Missing required fields
+- `401` - Authentication required
+- `404` - Mind map not found
+- `500` - AI generation failed
+
+<Info>
+Mind maps are ideal for brainstorming, memorization, and understanding hierarchical relationships between concepts.
+</Info>
