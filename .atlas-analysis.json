@@ -1,0 +1,107 @@
+{
+  "projectType": "saas",
+  "projectName": "inspir",
+  "projectDescription": "AI-powered study toolkit with 53+ tools for quizzes, notes, summaries, and exam prep",
+  "theme": "almond",
+  "primaryColor": "#6A1B9A",
+  "lightColor": "#C6FF00",
+  "darkColor": "#1A237E",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "how-it-works"
+            ]
+          },
+          {
+            "group": "Study Tools",
+            "pages": [
+              "tools/overview",
+              "tools/active-learning",
+              "tools/ai-assistance",
+              "tools/focus-productivity",
+              "tools/organization"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/gamification",
+              "features/social",
+              "features/analytics",
+              "features/sharing"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/overview",
+              "deployment/local-setup",
+              "deployment/production",
+              "deployment/database-setup"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/introduction",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/quiz",
+              "api/doubt-solver",
+              "api/citations",
+              "api/cornell-notes",
+              "api/flashcards",
+              "api/study-guides",
+              "api/summaries",
+              "api/streaks",
+              "api/forum"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "AI-powered quiz generation from study materials",
+    "Doubt solver with shareable solutions",
+    "53+ study tools (flashcards, summaries, timers, etc.)",
+    "Gamification system (streaks, badges, XP, leaderboards)",
+    "Student forum and study groups",
+    "Progress tracking and analytics",
+    "Citation generator (MLA, APA, Chicago, Harvard)",
+    "Cornell notes generator",
+    "File upload support (PDF, DOCX, TXT)"
+  ],
+  "publicApiSurface": [
+    "POST /api/quiz/generate - Generate quiz from content",
+    "POST /api/quiz/submit - Submit quiz for grading",
+    "GET /api/quiz/history - Get quiz history",
+    "POST /api/doubt/ask - Ask a question",
+    "GET /api/doubt/:shareId - Get shared doubt solution",
+    "POST /api/citations/generate - Generate citation",
+    "POST /api/cornell-notes/generate - Generate Cornell notes",
+    "POST /api/flashcards/generate - Generate flashcards",
+    "POST /api/study-guide/generate - Generate study guide",
+    "POST /api/summarizer/generate - Generate text summary",
+    "POST /api/streaks/activity - Log study activity",
+    "GET /api/streaks/current - Get current streak",
+    "POST /api/forum/posts - Create forum post",
+    "GET /api/forum/posts - List forum posts"
+  ]
+}
